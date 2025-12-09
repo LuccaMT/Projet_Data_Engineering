@@ -1,0 +1,379 @@
+/* Reset et base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    height: 100%;
+    width: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+#_dash-app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Wrapper global */
+.app-wrapper {
+    min-height: 100vh;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 0;
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+.header-container {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    color: white;
+    padding: 28px 40px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.header-icon {
+    font-size: 42px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.header-text h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.header-text p {
+    margin: 6px 0 0 0;
+    font-size: 15px;
+    opacity: 0.95;
+    font-weight: 400;
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px;
+}
+
+/* ============================================
+   CONTROL PANEL
+   ============================================ */
+.control-panel {
+    background-color: white;
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.control-panel h3 {
+    margin: 0 0 24px 0;
+    color: #1e3a8a;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    align-items: end;
+}
+
+.control-item label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.control-item input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.control-item input:focus {
+    outline: none;
+    border-color: #1e3a8a;
+    box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.12);
+}
+
+.control-item input:hover {
+    border-color: #9ca3af;
+}
+
+/* ============================================
+   BUTTON
+   ============================================ */
+.refresh-button {
+    width: 100%;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(30, 58, 138, 0.3);
+}
+
+.refresh-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+}
+
+.refresh-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(30, 58, 138, 0.3);
+}
+
+/* ============================================
+   STATUS PANEL
+   ============================================ */
+.status-panel {
+    background-color: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.status-panel h3 {
+    margin: 0 0 16px 0;
+    color: #1e3a8a;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.status-text {
+    white-space: pre-wrap;
+    background-color: #f9fafb;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    margin: 0;
+    border: 1px solid #e5e7eb;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.6;
+}
+
+/* ============================================
+   TABLE CONTAINER
+   ============================================ */
+.table-container {
+    background-color: white;
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.table-container h3 {
+    margin: 0 0 20px 0;
+    color: #1e3a8a;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* ============================================
+   DROPDOWN CUSTOMIZATION
+   ============================================ */
+.Select-control {
+    border-radius: 6px !important;
+    border: 2px solid #d1d5db !important;
+    transition: all 0.2s ease !important;
+}
+
+.Select-control:hover {
+    border-color: #9ca3af !important;
+}
+
+.is-focused .Select-control {
+    border-color: #1e3a8a !important;
+    box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.12) !important;
+}
+
+/* ============================================
+   DATATABLE STYLES - AMÉLIORATION LISIBILITÉ
+   ============================================ */
+.dash-table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.dash-table-container .dash-spreadsheet-container {
+    max-width: 100%;
+}
+
+.dash-spreadsheet {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+/* En-têtes du tableau */
+.dash-spreadsheet-inner th {
+    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+    font-weight: 700 !important;
+    color: white !important;
+    padding: 14px 16px !important;
+    text-align: left !important;
+    font-size: 14px !important;
+    letter-spacing: 0.3px !important;
+    border: none !important;
+    text-transform: uppercase !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+}
+
+/* Cellules du tableau */
+.dash-spreadsheet-inner td {
+    text-align: left !important;
+    padding: 14px 16px !important;
+    font-size: 14px !important;
+    color: #1f2937 !important;
+    min-width: 120px !important;
+    border: none !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    background-color: white !important;
+}
+
+/* Alternance de couleurs - Plus subtile et lisible */
+.dash-spreadsheet-inner tr:nth-child(even) td {
+    background-color: #f9fafb !important;
+}
+
+.dash-spreadsheet-inner tr:nth-child(odd) td {
+    background-color: white !important;
+}
+
+/* Effet hover sur les lignes */
+.dash-spreadsheet-inner tr:hover td {
+    background-color: #e0f2fe !important;
+    cursor: pointer;
+}
+
+/* Pagination */
+.dash-spreadsheet-container .previous-next-container {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #f9fafb;
+    border-radius: 6px;
+}
+
+.dash-spreadsheet-container .previous-next-container button {
+    background-color: #1e3a8a !important;
+    color: white !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.dash-spreadsheet-container .previous-next-container button:hover {
+    background-color: #1e40af !important;
+    transform: translateY(-1px);
+}
+
+.dash-spreadsheet-container .previous-next-container button:disabled {
+    background-color: #d1d5db !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* Scrollbar personnalisée */
+.dash-table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.dash-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.dash-table-container::-webkit-scrollbar-thumb {
+    background: #1e3a8a;
+    border-radius: 4px;
+}
+
+.dash-table-container::-webkit-scrollbar-thumb:hover {
+    background: #1e40af;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 20px;
+    }
+    
+    .header-container {
+        padding: 20px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+    }
+    
+    .header-icon {
+        font-size: 36px;
+    }
+    
+    .header-text h1 {
+        font-size: 24px;
+    }
+    
+    .controls-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .control-panel,
+    .status-panel,
+    .table-container {
+        padding: 20px;
+    }
+    
+    .dash-spreadsheet-inner th,
+    .dash-spreadsheet-inner td {
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+    }
+}

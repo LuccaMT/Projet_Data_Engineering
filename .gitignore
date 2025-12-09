@@ -1,0 +1,5 @@
+__pycache__/
+__init__.py
+
+# Ignore le contenu de data
+data/*.json
