@@ -154,7 +154,17 @@ def create_layout():
                 html.Div(
                     className="header-content",
                     children=[
-                        html.Div("⚽", className="header-icon"),
+                        html.Img(
+                            src="/assets/logo.png",
+                            className="header-logo",
+                            style={
+                                "height": "50px",
+                                "width": "auto",
+                                "maxWidth": "150px",
+                                "objectFit": "contain",
+                                "flexShrink": "0",
+                            },
+                        ),
                         html.Div(
                             className="header-text",
                             children=[
@@ -297,7 +307,6 @@ def create_layout():
             ],
         ),
         
-        dcc.Store(id="data-store"),
         dcc.Store(id="init-trigger", data={"initialized": False}),
     ])
 

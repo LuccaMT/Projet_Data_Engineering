@@ -536,11 +536,14 @@ html, body {
         gap: 12px;
     }
     
-    .header-icon {
-        font-size: 36px;
-    }
-    
-    .header-text h1 {
+.header-logo {
+    height: 45px;
+    max-width: 200px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+    flex-shrink: 0;
+}    .header-text h1 {
         font-size: 24px;
     }
     
