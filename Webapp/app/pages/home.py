@@ -12,8 +12,8 @@ from dash import dcc, html, dash_table, Input, Output, State, callback
 from dash.exceptions import PreventUpdate
 
 
-UPCOMING_OUTPUT = "data/dash_upcoming.json"
-FINISHED_OUTPUT = "data/dash_finished.json"
+UPCOMING_OUTPUT = "../../data/dash_upcoming.json"
+FINISHED_OUTPUT = "../../data/dash_finished.json"
 
 today_str = datetime.date.today().isoformat()
 current_month = f"{datetime.date.today():%Y-%m}"

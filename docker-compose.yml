@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Service MongoDB pour la base de données
+  mongodb:
+    image: mongo:7.0
+    container_name: flashscore-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: flashscore
+    volumes:
+      # Persister les données MongoDB
+      - mongodb_data:/data/db
+    networks:
+      - flashscore-network
+    restart: unless-stopped
+
+  # Service Scrapy pour le scraping des données
+  scrapy:
+    build:
+      context: ./Scrapy
+      dockerfile: Dockerfile
+    container_name: flashscore-scrapy
+    environment:
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/
+      MONGO_DB: flashscore
+    volumes:
+      # Monter le code pour le développement (optionnel)
+      - ./Scrapy/crawler:/app/crawler
+    networks:
+      - flashscore-network
+    depends_on:
+      - mongodb
+    # Le service reste actif en mode veille
+    command: tail -f /dev/null
+
+  # Service Webapp pour le dashboard Dash
+  webapp:
+    build:
+      context: ./Webapp
+      dockerfile: Dockerfile
+    container_name: flashscore-webapp
+    ports:
+      # Exposer le port 8050 pour accéder au dashboard
+      - "8050:8050"
+    environment:
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/
+      MONGO_DB: flashscore
+    volumes:
+      # Monter le code pour le développement (optionnel)
+      - ./Webapp/app:/app/app
+    networks:
+      - flashscore-network
+    depends_on:
+      - mongodb
+    # Démarrer l'application Dash
+    command: python main.py
+
+# Réseau partagé entre les services
+networks:
+  flashscore-network:
+    driver: bridge
+
+# Volume pour persister les données MongoDB
+volumes:
+  mongodb_data:

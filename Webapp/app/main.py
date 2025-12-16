@@ -3,7 +3,7 @@ Serveur principal du dashboard Flashscore Football
 Lance l'application Dash avec support CSS externe
 """
 from dash import Dash
-from src.pages import home
+from pages import home
 
 
 # Initialiser l'app Dash

@@ -1,5 +1,4 @@
-﻿dash==3.2.0
-pandas==2.3.3
 scrapy==2.13.4
 requests==2.32.5
 parsel==1.10.0
+pymongo==4.6.1
