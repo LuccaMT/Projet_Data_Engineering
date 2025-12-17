@@ -34,8 +34,8 @@ services:
       - flashscore-network
     depends_on:
       - mongodb
-    # Le service reste actif en mode veille
-    command: tail -f /dev/null
+    restart: unless-stopped
+    # Le script entrypoint.sh s'exécute automatiquement au démarrage
 
   # Service Webapp pour le dashboard Dash
   webapp:
@@ -49,9 +49,12 @@ services:
     environment:
       MONGO_URI: mongodb://admin:admin123@mongodb:27017/
       MONGO_DB: flashscore
+      DOCKER_HOST: unix:///var/run/docker.sock
     volumes:
       # Monter le code pour le développement (optionnel)
       - ./Webapp/app:/app/app
+      # Permettre à la webapp d'exécuter docker exec vers le conteneur scrapy
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - flashscore-network
     depends_on:

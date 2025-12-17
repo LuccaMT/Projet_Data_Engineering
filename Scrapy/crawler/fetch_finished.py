@@ -1,10 +1,12 @@
 import argparse
+import os
 from dataclasses import asdict
 from datetime import date, timedelta
 from typing import Iterable, List, Tuple
 
 import scrapy
 from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import get_project_settings
 
 from flashscore_feed import (
     FEED_URL,
@@ -124,10 +126,8 @@ def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
 class FinishedSpider(scrapy.Spider):
     name = "flashscore_finished"
 
-    custom_settings = {
-        "ROBOTSTXT_OBEY": False,
-        "DOWNLOAD_DELAY": 0.5,
-    }
+    # On ne surcharge pas les custom_settings pour garder les pipelines du projet
+    # custom_settings sont déjà définis dans settings.py
 
     def __init__(self, dates: Iterable[date], variant: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -159,23 +159,41 @@ def main() -> None:
     start, end, label = resolve_range(args)
     dates = list(daterange(start, end))
 
-    output_path = args.output or f"data/matches_finished_{label}.json"
-
-    settings = {
-        "FEEDS": {
+    # Charger les settings du projet Scrapy (incluant MongoDB)
+    settings = get_project_settings()
+    
+    # Récupérer les variables d'environnement pour MongoDB si disponibles
+    mongo_uri = os.getenv('MONGO_URI')
+    mongo_db = os.getenv('MONGO_DB')
+    
+    if mongo_uri:
+        settings.set('MONGO_URI', mongo_uri)
+    if mongo_db:
+        settings.set('MONGO_DB', mongo_db)
+    
+    # Ajouter le User-Agent
+    settings.set('USER_AGENT', REQUEST_HEADERS["User-Agent"])
+    
+    # Si un output est spécifié, on garde aussi l'export JSON
+    if args.output:
+        output_path = args.output
+        settings.set('FEEDS', {
             output_path: {
                 "format": "json",
                 "overwrite": True,
                 "encoding": "utf-8",
             }
-        },
-        "USER_AGENT": REQUEST_HEADERS["User-Agent"],
-    }
-
+        })
+        print(f"Export JSON configuré vers: {output_path}")
+    
     process = CrawlerProcess(settings=settings)
     process.crawl(FinishedSpider, dates=dates, variant=args.variant)
     process.start()
-    print(f"Export termine -> {output_path}")
+    
+    if mongo_uri:
+        print(f"✅ Données stockées dans MongoDB ({mongo_db}.matches_finished)")
+    if args.output:
+        print(f"✅ Export JSON terminé -> {output_path}")
 
 
 if __name__ == "__main__":

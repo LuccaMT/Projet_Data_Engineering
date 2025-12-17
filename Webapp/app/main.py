@@ -1,9 +1,9 @@
 """
 Serveur principal du dashboard Flashscore Football
-Lance l'application Dash avec support CSS externe
+Lance l'application Dash avec support CSS externe et routing multi-pages
 """
-from dash import Dash
-from pages import home
+from dash import Dash, html, dcc, Input, Output
+from pages import home, leagues
 
 
 # Initialiser l'app Dash
@@ -13,8 +13,26 @@ app = Dash(
     title="Flashscore Football Dashboard"
 )
 
-# Configurer le layout depuis la page home
-app.layout = home.layout
+# Configurer le layout principal avec routing
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    html.Div(id='page-content')
+])
+
+
+# Callback pour gérer le routing
+@app.callback(
+    Output('page-content', 'children'),
+    Input('url', 'pathname')
+)
+def display_page(pathname):
+    """
+    Affiche la page correspondant au chemin URL
+    """
+    if pathname == '/leagues':
+        return leagues.layout
+    else:  # Par défaut, afficher la page home
+        return home.layout
 
 
 def run():

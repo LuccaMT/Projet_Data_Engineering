@@ -1,9 +1,11 @@
 import argparse
+import os
 from dataclasses import asdict
 from datetime import date, timedelta
 
 import scrapy
 from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import get_project_settings
 
 from flashscore_feed import (
     FEED_URL,
@@ -35,6 +37,12 @@ def parse_args() -> argparse.Namespace:
         help="Variante du flux Flashscore (laisser 0 sauf besoin specifique).",
     )
     parser.add_argument(
+        "--days",
+        type=int,
+        default=1,
+        help="Nombre de jours a scraper a partir de la date de depart (inclus). Exemple: 7 pour aujourd'hui + les 6 prochains jours.",
+    )
+    parser.add_argument(
         "--output",
         help="Chemin du fichier JSON de sortie. Par defaut: matches_upcoming_<date>.json",
     )
@@ -50,10 +58,8 @@ def resolve_date(arg_date: str | None, offset: int) -> date:
 class UpcomingSpider(scrapy.Spider):
     name = "flashscore_upcoming"
 
-    custom_settings = {
-        "ROBOTSTXT_OBEY": False,  # feed endpoint; avoid robots fetch on every run
-        "DOWNLOAD_DELAY": 0.5,
-    }
+    # On ne surcharge pas les custom_settings pour garder les pipelines du projet
+    # custom_settings sont déjà définis dans settings.py
 
     def __init__(self, target_date: date, variant: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -82,23 +88,51 @@ class UpcomingSpider(scrapy.Spider):
 def main() -> None:
     args = parse_args()
     target_date = resolve_date(args.date, args.offset)
-    output_path = args.output or f"data/matches_upcoming_{target_date.isoformat()}.json"
+    
+    days = max(1, args.days)
+    if days > 7:
+        print(f"WARNING: Flashscore limite les donnees a +/- 7 jours. --days reduit de {days} a 7.")
+        days = 7
+    dates = [target_date + timedelta(days=offset) for offset in range(days)]
 
-    settings = {
-        "FEEDS": {
+    # IMPORTANT: Charger les settings APRÈS avoir défini les variables d'environnement
+    # car le module settings.py lit os.getenv() à l'import
+    settings = get_project_settings()
+    
+    # Afficher la configuration pour debug
+    print(f"Configuration MongoDB:")
+    print(f"  MONGO_URI: {settings.get('MONGO_URI')}")
+    print(f"  MONGO_DB: {settings.get('MONGO_DB')}")
+    print(f"  Pipelines: {settings.get('ITEM_PIPELINES')}")
+    
+    # Ajouter le User-Agent
+    settings.set('USER_AGENT', REQUEST_HEADERS["User-Agent"])
+    
+    # Si un output est spécifié, on garde aussi l'export JSON
+    if args.output:
+        output_path = args.output
+        settings.set('FEEDS', {
             output_path: {
                 "format": "json",
                 "overwrite": True,
                 "encoding": "utf-8",
             }
-        },
-        "USER_AGENT": REQUEST_HEADERS["User-Agent"],
-    }
+        })
+        print(f"Export JSON configuré vers: {output_path}")
 
     process = CrawlerProcess(settings=settings)
-    process.crawl(UpcomingSpider, target_date=target_date, variant=args.variant)
+    for dt in dates:
+        process.crawl(UpcomingSpider, target_date=dt, variant=args.variant)
     process.start()
-    print(f"Export termine -> {output_path}")
+    
+    mongo_uri = settings.get('MONGO_URI')
+    mongo_db = settings.get('MONGO_DB')
+    
+    if mongo_uri:
+        print(f"✅ Données stockées dans MongoDB ({mongo_db}.matches_upcoming)")
+    if args.output:
+        print(f"✅ Export JSON terminé -> {args.output}")
+
 
 
 if __name__ == "__main__":
