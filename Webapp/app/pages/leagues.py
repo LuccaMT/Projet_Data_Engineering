@@ -118,7 +118,7 @@ def create_layout():
                                 style={"marginBottom": "24px"},
                                 children=[
                                     html.Label(
-                                        "🌍 Filtrer par pays",
+                                        "🌍 Pays et Continent",
                                         style={
                                             "marginBottom": "12px",
                                             "display": "block",
@@ -130,7 +130,7 @@ def create_layout():
                                         id="country-selector",
                                         options=[],  # Sera rempli dynamiquement
                                         value=None,
-                                        placeholder="Tous les pays",
+                                        placeholder="Tous les pays et continents",
                                         clearable=True,
                                         style={
                                             "width": "100%",
