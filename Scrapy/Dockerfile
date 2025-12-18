@@ -19,8 +19,8 @@ COPY crawler/ ./crawler/
 # Copier le script d'entrée
 COPY entrypoint.sh /app/entrypoint.sh
 
-# Rendre le script exécutable
-RUN chmod +x /app/entrypoint.sh
+# Convertir les fins de ligne Windows (CRLF) vers Unix (LF) et rendre exécutable
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Créer le dossier data pour les sorties
 RUN mkdir -p /data

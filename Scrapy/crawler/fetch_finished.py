@@ -8,6 +8,10 @@ import scrapy
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 from flashscore_feed import (
     FEED_URL,
     REQUEST_HEADERS,

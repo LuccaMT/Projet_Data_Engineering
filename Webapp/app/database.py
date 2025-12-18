@@ -211,6 +211,31 @@ class MongoDBConnection:
         except Exception as e:
             print(f"Erreur lors de la suppression des matchs obsolètes: {e}")
             return 0
+    
+    def get_all_leagues(self) -> List[str]:
+        """
+        Récupère toutes les ligues uniques depuis les deux collections.
+        
+        Returns:
+            Liste des noms de ligues triés alphabétiquement
+        """
+        if self.db is None:
+            if not self.connect():
+                return []
+        
+        try:
+            # Récupérer toutes les ligues uniques depuis les deux collections
+            leagues_upcoming = self.db['matches_upcoming'].distinct('league')
+            leagues_finished = self.db['matches_finished'].distinct('league')
+            
+            # Fusionner et supprimer les doublons
+            all_leagues = list(set(leagues_upcoming + leagues_finished))
+            all_leagues.sort()
+            
+            return all_leagues
+        except Exception as e:
+            print(f"Erreur lors de la récupération des ligues: {e}")
+            return []
 
 
 # Instance globale (singleton pattern)

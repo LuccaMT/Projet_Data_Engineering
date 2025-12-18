@@ -8,25 +8,33 @@ from database import get_db_connection
 from components.navbar import create_navbar
 
 
+def get_flashscore_countries():
+    """
+    Extrait les pays uniques depuis les ligues en base de données MongoDB.
+    Format des ligues: "COUNTRY: League Name"
+    
+    Returns:
+        Liste des pays uniques triés par ordre alphabétique
+    """
+    db = get_db_connection()
+    leagues = db.get_all_leagues()
+    
+    # Extraire les pays depuis le format "COUNTRY: League Name"
+    countries = set()
+    for league in leagues:
+        if ":" in league:
+            country = league.split(":")[0].strip()
+            countries.add(country)
+    
+    return sorted(list(countries))
+
+
 def get_all_leagues():
     """
     Récupère toutes les ligues disponibles depuis MongoDB
     """
     db = get_db_connection()
-    
-    try:
-        # Récupérer toutes les ligues uniques depuis les deux collections
-        leagues_upcoming = db.db['matches_upcoming'].distinct('league')
-        leagues_finished = db.db['matches_finished'].distinct('league')
-        
-        # Fusionner et supprimer les doublons
-        all_leagues = list(set(leagues_upcoming + leagues_finished))
-        all_leagues.sort()
-        
-        return all_leagues
-    except Exception as e:
-        print(f"Erreur lors de la récupération des ligues: {e}")
-        return []
+    return db.get_all_leagues()
 
 
 def create_layout():
@@ -103,7 +111,34 @@ def create_layout():
                     html.Div(
                         className="control-panel",
                         children=[
-                            html.H3("Recherche de ligues"),
+                            html.H3("Filtres"),
+                            
+                            # Sélecteur de pays
+                            html.Div(
+                                style={"marginBottom": "24px"},
+                                children=[
+                                    html.Label(
+                                        "🌍 Filtrer par pays",
+                                        style={
+                                            "marginBottom": "12px",
+                                            "display": "block",
+                                            "fontWeight": "600",
+                                            "fontSize": "15px",
+                                        },
+                                    ),
+                                    dcc.Dropdown(
+                                        id="country-selector",
+                                        options=[],  # Sera rempli dynamiquement
+                                        value=None,
+                                        placeholder="Tous les pays",
+                                        clearable=True,
+                                        style={
+                                            "width": "100%",
+                                            "fontSize": "15px",
+                                        },
+                                    ),
+                                ],
+                            ),
                             
                             # Barre de recherche
                             html.Div(
@@ -118,45 +153,17 @@ def create_layout():
                                             "fontSize": "15px",
                                         },
                                     ),
-                                    html.Div(
-                                        style={"position": "relative"},
-                                        children=[
-                                            dcc.Input(
-                                                id="league-search-input",
-                                                type="text",
-                                                placeholder="Tapez le nom d'une ligue (ex: Premier League, Ligue 1, Champions League...)",
-                                                list="leagues-datalist",
-                                                autoComplete="off",
-                                                style={
-                                                    "width": "100%",
-                                                    "padding": "14px 20px",
-                                                    "border": "2px solid #e5e7eb",
-                                                    "borderRadius": "12px",
-                                                    "fontSize": "15px",
-                                                    "fontFamily": "'Inter', sans-serif",
-                                                },
-                                                debounce=300,
-                                            ),
-                                            # Suggestions dropdown
-                                            html.Div(
-                                                id="league-suggestions",
-                                                style={
-                                                    "position": "absolute",
-                                                    "top": "100%",
-                                                    "left": "0",
-                                                    "right": "0",
-                                                    "backgroundColor": "white",
-                                                    "border": "2px solid #e5e7eb",
-                                                    "borderTop": "none",
-                                                    "borderRadius": "0 0 12px 12px",
-                                                    "maxHeight": "300px",
-                                                    "overflowY": "auto",
-                                                    "display": "none",
-                                                    "zIndex": "1000",
-                                                    "boxShadow": "0 10px 30px rgba(0, 0, 0, 0.15)",
-                                                },
-                                            ),
-                                        ],
+                                    dcc.Dropdown(
+                                        id="league-search-input",
+                                        options=[],  # Sera rempli dynamiquement
+                                        value=None,
+                                        placeholder="Tapez pour rechercher une ligue...",
+                                        clearable=True,
+                                        searchable=True,
+                                        style={
+                                            "width": "100%",
+                                            "fontSize": "15px",
+                                        },
                                     ),
                                 ],
                             ),
@@ -231,91 +238,50 @@ def create_layout():
 # Callbacks
 @callback(
     [
+        Output("country-selector", "options"),
+        Output("league-search-input", "options"),
         Output("leagues-list", "children"),
         Output("leagues-stats-text", "children"),
-        Output("league-suggestions", "children"),
-        Output("league-suggestions", "style"),
     ],
-    [Input("league-search-input", "value")],
+    [
+        Input("league-search-input", "value"),
+        Input("country-selector", "value"),
+    ],
 )
-def update_leagues_list(search_value):
+def update_leagues_list(search_value, selected_country):
     """
-    Filtre et affiche la liste des ligues selon la recherche
-    Affiche aussi les suggestions d'autocomplétion
+    Filtre et affiche la liste des ligues selon la recherche et le pays
     """
+    print(f"[DEBUG] Recherche: {search_value}, Pays: {selected_country}")
+    
     all_leagues = get_all_leagues()
+    all_countries = get_flashscore_countries()
     
-    # Style de base pour le dropdown de suggestions
-    suggestions_style = {
-        "position": "absolute",
-        "top": "100%",
-        "left": "0",
-        "right": "0",
-        "backgroundColor": "white",
-        "border": "2px solid #e5e7eb",
-        "borderTop": "none",
-        "borderRadius": "0 0 12px 12px",
-        "maxHeight": "300px",
-        "overflowY": "auto",
-        "zIndex": "1000",
-        "boxShadow": "0 10px 30px rgba(0, 0, 0, 0.15)",
-        "display": "none",
-    }
+    # Options pour le sélecteur de pays
+    country_options = [{"label": country, "value": country} for country in all_countries]
     
-    # Filtrer selon la recherche
-    if search_value:
+    # Filtrer par pays si sélectionné
+    if selected_country:
         filtered_leagues = [
-            league for league in all_leagues
-            if search_value.lower() in league.lower()
+            league for league in all_leagues 
+            if league.startswith(selected_country + ":")
         ]
-        
-        # Créer les suggestions (max 10)
-        suggestions = []
-        if len(filtered_leagues) > 0 and search_value:
-            suggestions_style["display"] = "block"
-            for league in filtered_leagues[:10]:
-                # Mettre en surbrillance la partie recherchée
-                idx = league.lower().find(search_value.lower())
-                if idx != -1:
-                    before = league[:idx]
-                    match = league[idx:idx+len(search_value)]
-                    after = league[idx+len(search_value):]
-                    
-                    suggestion_item = html.Div(
-                        [
-                            html.Span(before),
-                            html.Span(match, style={"fontWeight": "700", "color": "#2563eb", "backgroundColor": "#dbeafe"}),
-                            html.Span(after),
-                        ],
-                        className="suggestion-item",
-                        style={
-                            "padding": "12px 20px",
-                            "cursor": "pointer",
-                            "transition": "all 0.2s ease",
-                            "borderBottom": "1px solid #f3f4f6",
-                            "fontSize": "14px",
-                        },
-                        n_clicks=0,
-                    )
-                else:
-                    suggestion_item = html.Div(
-                        league,
-                        className="suggestion-item",
-                        style={
-                            "padding": "12px 20px",
-                            "cursor": "pointer",
-                            "transition": "all 0.2s ease",
-                            "borderBottom": "1px solid #f3f4f6",
-                            "fontSize": "14px",
-                        },
-                        n_clicks=0,
-                    )
-                suggestions.append(suggestion_item)
-        else:
-            suggestions = []
     else:
         filtered_leagues = all_leagues
-        suggestions = []
+    
+    # Filtrer par recherche si une ligue spécifique est sélectionnée
+    if search_value:
+        filtered_leagues = [league for league in filtered_leagues if league == search_value]
+    
+    # Options pour le dropdown de recherche (toujours toutes les ligues filtrées par pays)
+    league_options = [
+        {"label": league, "value": league} 
+        for league in (
+            [l for l in all_leagues if l.startswith(selected_country + ":")] 
+            if selected_country 
+            else all_leagues
+        )
+    ]
     
     # Statistiques
     stats_text = f"{len(filtered_leagues)} ligue(s) trouvée(s) sur {len(all_leagues)} au total"
@@ -400,7 +366,7 @@ def update_leagues_list(search_value):
             )
             league_cards.append(card)
     
-    return league_cards, stats_text, suggestions, suggestions_style
+    return country_options, league_options, league_cards, stats_text
 
 
 # Layout pour l'export
