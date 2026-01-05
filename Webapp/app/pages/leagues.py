@@ -1,25 +1,41 @@
-"""
-Page de sélection et recherche de ligues
-"""
-from dash import html, dcc, Input, Output, State, callback
-import pandas as pd
+"""Page Ligues : parcourir et naviguer vers la vue détaillée d'une ligue."""
+
+from typing import List
+
+import urllib.parse
+from dash import html, dcc, Input, Output, callback
 
 from database import get_db_connection
 from components.navbar import create_navbar
+from text_utils import normalize_unicode_label, parse_league_country
 
 
-def get_flashscore_countries():
-    """
-    Extrait les pays uniques depuis les ligues en base de données MongoDB.
-    Format des ligues: "COUNTRY: League Name"
-    
+TOP_5_LEAGUES = [
+    "FRANCE: Ligue 1",
+    "SPAIN: LaLiga",
+    "ENGLAND: Premier League",
+    "GERMANY: Bundesliga",
+    "ITALY: Serie A",
+]
+
+LEAGUE_EMOJIS = {
+    "FRANCE: Ligue 1": "🇫🇷",
+    "SPAIN: LaLiga": "🇪🇸",
+    "ENGLAND: Premier League": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "GERMANY: Bundesliga": "🇩🇪",
+    "ITALY: Serie A": "🇮🇹",
+}
+
+
+def get_flashscore_countries() -> List[str]:
+    """Retourne la liste triée des pays présents dans les ligues.
+
     Returns:
-        Liste des pays uniques triés par ordre alphabétique
+        List[str]: Pays distincts détectés via le préfixe "PAYS: Ligue".
     """
     db = get_db_connection()
     leagues = db.get_all_leagues()
     
-    # Extraire les pays depuis le format "COUNTRY: League Name"
     countries = set()
     for league in leagues:
         if ":" in league:
@@ -29,16 +45,189 @@ def get_flashscore_countries():
     return sorted(list(countries))
 
 
-def get_all_leagues():
-    """
-    Récupère toutes les ligues disponibles depuis MongoDB
+def get_all_leagues() -> List[str]:
+    """Récupère toutes les ligues disponibles depuis MongoDB.
+
+    Returns:
+        List[str]: Liste des labels de ligues.
     """
     db = get_db_connection()
     return db.get_all_leagues()
 
 
+# Classement custom pour mettre en avant les ligues les plus prestigieuses/populaires
+PRESTIGE_RULES = [
+    {"keywords": ["champions league"], "countries": None},
+    {"keywords": ["premier league"], "countries": {"england"}},
+    {"keywords": ["laliga", "la liga"], "countries": {"spain"}},
+    {"keywords": ["bundesliga"], "countries": {"germany"}},
+    {"keywords": ["serie a"], "countries": {"italy"}},
+    {"keywords": ["ligue 1"], "countries": {"france"}},
+    {"keywords": ["eredivisie"], "countries": {"netherlands"}},
+    {"keywords": ["primeira liga"], "countries": {"portugal"}},
+    {"keywords": ["super lig"], "countries": {"turkey"}},
+    {"keywords": ["jupiler pro league", "first division a"], "countries": {"belgium"}},
+    {"keywords": ["liga mx"], "countries": {"mexico"}},
+    {"keywords": ["mls", "major league soccer"], "countries": {"usa", "united states"}},
+    {"keywords": ["serie a"], "countries": {"brazil"}},
+    {"keywords": ["liga profesional", "liga profissional", "primera division"], "countries": {"argentina"}},
+    {"keywords": ["pro league"], "countries": {"saudi arabia"}},
+]
+
+COUNTRY_PRIORITY = [
+    "england",
+    "spain",
+    "germany",
+    "italy",
+    "france",
+    "netherlands",
+    "portugal",
+    "turkey",
+    "belgium",
+    "brazil",
+    "argentina",
+    "mexico",
+    "usa",
+    "united states",
+    "saudi arabia",
+]
+COUNTRY_RANK = {country: idx for idx, country in enumerate(COUNTRY_PRIORITY)}
+
+SECONDARY_LEAGUE_MARKERS = [
+    "championship",
+    "league one",
+    "league two",
+    "segunda",
+    "division 2",
+    "division 3",
+    "national league",
+]
+
+CUP_AND_FRIENDLY_MARKERS = [
+    "cup",
+    "friendly",
+    "play-off",
+    "play off",
+    "playoff",
+    "trophy",
+]
+
+
+def _normalize_label(value: str) -> str:
+    """Normalise un label pour les comparaisons.
+
+    Args:
+        value: Label brut.
+
+    Returns:
+        Chaîne ASCII-isée, en minuscules, espaces normalisés.
+    """
+    normalized_ascii = normalize_unicode_label(value or "")
+    return " ".join(normalized_ascii.lower().split())
+
+
+def _split_league_parts(league_label: str) -> tuple[str, str]:
+    """Divise un label de ligue en parties normalisées (pays, ligue)."""
+    country, name = parse_league_country(league_label)
+    return _normalize_label(country), _normalize_label(name)
+
+
+def league_priority(league_label: str) -> float:
+    """Calcule la priorité de tri (plus bas = plus prestigieux)."""
+    country, league_name = _split_league_parts(league_label)
+    
+    for idx, rule in enumerate(PRESTIGE_RULES):
+        if rule["countries"] and country not in rule["countries"]:
+            continue
+        if any(keyword in league_name for keyword in rule["keywords"]):
+            return float(idx)
+    
+    country_score = COUNTRY_RANK.get(country, len(COUNTRY_RANK))
+    penalty = 0.0
+    if any(marker in league_name for marker in SECONDARY_LEAGUE_MARKERS):
+        penalty += 0.75
+    if any(marker in league_name for marker in CUP_AND_FRIENDLY_MARKERS):
+        penalty += 1.5
+    
+    return float(len(PRESTIGE_RULES) + country_score) + penalty
+
+
+def sort_leagues_by_prestige(leagues: List[str]) -> List[str]:
+    """Trie les ligues par :func:`league_priority` puis ordre alphabétique."""
+    return sorted(leagues, key=lambda league: (league_priority(league), league))
+
+
+def create_league_card(league: str, emoji: str = "🏆", is_top_5: bool = False):
+    """Crée un bloc UI de carte de ligue.
+
+    Args:
+        league: Label de la ligue.
+        emoji: Emoji affiché à côté de la ligue.
+        is_top_5: Si True, met en évidence comme ligue Top 5.
+
+    Returns:
+        Conteneur HTML Dash pour la carte.
+    """
+    bg_color = "#fffbeb" if is_top_5 else "#ffffff"
+    border_color = "#fbbf24" if is_top_5 else "#e5e7eb"
+    
+    return html.Div(
+        className="league-card",
+        style={
+            "backgroundColor": bg_color,
+            "border": f"2px solid {border_color}",
+        },
+        children=[
+            html.Div(
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "gap": "12px",
+                    "marginBottom": "12px",
+                },
+                children=[
+                    html.Span(emoji, style={"fontSize": "28px"}),
+                    html.H4(
+                        league,
+                        style={
+                            "margin": "0",
+                            "fontSize": "16px",
+                            "fontWeight": "700",
+                            "color": "#1f2937",
+                            "lineHeight": "1.4",
+                        },
+                    ),
+                ],
+            ),
+            html.Button(
+                dcc.Link(
+                    "Voir les matchs & classement →",
+                    href=f"/league?name={urllib.parse.quote_plus(league)}",
+                    style={
+                        "display": "block",
+                        "width": "100%",
+                        "color": "#2563eb",
+                        "textDecoration": "none",
+                    },
+                ),
+                className="league-button",
+                style={
+                    "width": "100%",
+                    "padding": "8px 16px",
+                    "backgroundColor": "#eff6ff",
+                    "border": "1px solid #bfdbfe",
+                    "borderRadius": "8px",
+                    "cursor": "pointer",
+                    "transition": "all 0.2s",
+                    "fontWeight": "600",
+                },
+            ),
+        ],
+    )
+
+
 def create_layout():
-    """Crée le layout de la page des ligues"""
+    """Crée le layout de la page ligues."""
     return html.Div(
         className="app-wrapper",
         children=[
@@ -235,7 +424,6 @@ def create_layout():
     )
 
 
-# Callbacks
 @callback(
     [
         Output("country-selector", "options"),
@@ -249,44 +437,42 @@ def create_layout():
     ],
 )
 def update_leagues_list(search_value, selected_country):
-    """
-    Filtre et affiche la liste des ligues selon la recherche et le pays
-    """
+    """Met à jour les options de pays, options de recherche et cartes de ligues affichées."""
     print(f"[DEBUG] Recherche: {search_value}, Pays: {selected_country}")
     
     all_leagues = get_all_leagues()
+    sorted_leagues = sort_leagues_by_prestige(all_leagues)
     all_countries = get_flashscore_countries()
     
-    # Options pour le sélecteur de pays
     country_options = [{"label": country, "value": country} for country in all_countries]
     
-    # Filtrer par pays si sélectionné
     if selected_country:
         filtered_leagues = [
-            league for league in all_leagues 
+            league for league in sorted_leagues 
             if league.startswith(selected_country + ":")
         ]
     else:
-        filtered_leagues = all_leagues
+        filtered_leagues = sorted_leagues
     
-    # Filtrer par recherche si une ligue spécifique est sélectionnée
     if search_value:
         filtered_leagues = [league for league in filtered_leagues if league == search_value]
     
-    # Options pour le dropdown de recherche (toujours toutes les ligues filtrées par pays)
-    league_options = [
-        {"label": league, "value": league} 
-        for league in (
-            [l for l in all_leagues if l.startswith(selected_country + ":")] 
-            if selected_country 
-            else all_leagues
-        )
-    ]
+    league_options_source = (
+        [l for l in sorted_leagues if l.startswith(selected_country + ":")]
+        if selected_country
+        else sorted_leagues
+    )
+    league_options = [{"label": league, "value": league} for league in league_options_source]
     
-    # Statistiques
-    stats_text = f"{len(filtered_leagues)} ligue(s) trouvée(s) sur {len(all_leagues)} au total"
+    top_preview = ", ".join(filtered_leagues[:3]) if filtered_leagues else "aucune"
+    stats_text = (
+        f"{len(filtered_leagues)} ligue(s) triées par prestige/popularité "
+        f"(top: {top_preview})"
+    )
     
-    # Créer les cards pour chaque ligue
+    top_5_filtered = [l for l in filtered_leagues if l in TOP_5_LEAGUES]
+    other_leagues = [l for l in filtered_leagues if l not in TOP_5_LEAGUES]
+    
     if not filtered_leagues:
         league_cards = [
             html.Div(
@@ -321,53 +507,84 @@ def update_leagues_list(search_value, selected_country):
         ]
     else:
         league_cards = []
-        for league in filtered_leagues:
-            card = html.Div(
-                className="league-card",
-                children=[
-                    html.Div(
-                        style={
-                            "display": "flex",
-                            "alignItems": "center",
-                            "gap": "12px",
-                            "marginBottom": "12px",
-                        },
-                        children=[
-                            html.Span("🏆", style={"fontSize": "28px"}),
-                            html.H4(
-                                league,
-                                style={
-                                    "margin": "0",
-                                    "fontSize": "16px",
-                                    "fontWeight": "700",
-                                    "color": "#1f2937",
-                                    "lineHeight": "1.4",
-                                },
-                            ),
-                        ],
-                    ),
-                    html.Button(
-                        "Voir les matchs →",
-                        className="league-button",
-                        style={
-                            "width": "100%",
-                            "padding": "8px 16px",
-                            "backgroundColor": "#eff6ff",
-                            "color": "#2563eb",
-                            "border": "2px solid #bfdbfe",
-                            "borderRadius": "8px",
-                            "fontSize": "13px",
-                            "fontWeight": "600",
-                            "cursor": "pointer",
-                            "transition": "all 0.2s ease",
-                        },
-                    ),
-                ],
+        
+        if top_5_filtered:
+            league_cards.append(
+                html.Div(
+                    style={
+                        "gridColumn": "1 / -1",
+                        "marginBottom": "12px",
+                        "padding": "16px 20px",
+                        "backgroundColor": "#fef3c7",
+                        "borderRadius": "12px",
+                        "border": "2px solid #fbbf24",
+                    },
+                    children=[
+                        html.H3(
+                            "🌟 Top 5 Grands Championnats",
+                            style={
+                                "margin": "0",
+                                "fontSize": "22px",
+                                "fontWeight": "800",
+                                "color": "#92400e",
+                            },
+                        ),
+                        html.P(
+                            f"Calendrier étendu : 6 mois de matchs • {len(top_5_filtered)} ligue(s)",
+                            style={
+                                "margin": "4px 0 0 0",
+                                "fontSize": "14px",
+                                "color": "#78350f",
+                                "fontWeight": "600",
+                            },
+                        ),
+                    ],
+                ),
             )
-            league_cards.append(card)
+            
+            for league in top_5_filtered:
+                emoji = LEAGUE_EMOJIS.get(league, "🏆")
+                league_cards.append(create_league_card(league, emoji, is_top_5=True))
+        
+        if other_leagues:
+            league_cards.append(
+                html.Div(
+                    style={
+                        "gridColumn": "1 / -1",
+                        "marginTop": "32px",
+                        "marginBottom": "12px",
+                        "padding": "16px 20px",
+                        "backgroundColor": "#f0f9ff",
+                        "borderRadius": "12px",
+                        "border": "2px solid #bfdbfe",
+                    },
+                    children=[
+                        html.H3(
+                            "📅 Autres Championnats & Coupes",
+                            style={
+                                "margin": "0",
+                                "fontSize": "20px",
+                                "fontWeight": "700",
+                                "color": "#1e40af",
+                            },
+                        ),
+                        html.P(
+                            f"Matchs proches : J à J+7 • {len(other_leagues)} ligue(s)",
+                            style={
+                                "margin": "4px 0 0 0",
+                                "fontSize": "14px",
+                                "color": "#1e40af",
+                                "fontWeight": "600",
+                            },
+                        ),
+                    ],
+                ),
+            )
+            
+            for league in other_leagues:
+                league_cards.append(create_league_card(league, "🏆", is_top_5=False))
     
     return country_options, league_options, league_cards, stats_text
 
 
-# Layout pour l'export
 layout = create_layout()
