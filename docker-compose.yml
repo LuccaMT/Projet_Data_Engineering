@@ -17,6 +17,12 @@ services:
     networks:
       - flashscore-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # Service Scrapy pour le scraping des données
   scrapy:
@@ -33,7 +39,8 @@ services:
     networks:
       - flashscore-network
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
     # Le script entrypoint.sh s'exécute automatiquement au démarrage
 
@@ -50,6 +57,7 @@ services:
       MONGO_URI: mongodb://admin:admin123@mongodb:27017/
       MONGO_DB: flashscore
       DOCKER_HOST: unix:///var/run/docker.sock
+      DEV: "False"  # Mettre "True" pour afficher le panel de statut
     volumes:
       # Monter le code pour le développement (optionnel)
       - ./Webapp/app:/app/app
@@ -58,7 +66,8 @@ services:
     networks:
       - flashscore-network
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     # Démarrer l'application Dash
     command: python main.py
 
