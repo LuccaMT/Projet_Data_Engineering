@@ -1,18 +1,36 @@
 """
-Module de gestion de la connexion MongoDB pour la webapp
-"""
-import os
-from datetime import datetime
-from typing import List, Dict, Optional
+MongoDB connection and query management module for Flashscore Dashboard.
 
+This module provides a singleton class to interact with the MongoDB database
+containing football matches and league standings.
+"""
+
+# Standard library
+import os
+from datetime import date, datetime, timedelta
+from typing import Dict, List, Optional
+
+# Third-party
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 
 class MongoDBConnection:
-    """Gestionnaire de connexion MongoDB pour la webapp"""
+    """
+    MongoDB connection and database operations management class.
+    
+    This class handles the MongoDB connection and provides methods to retrieve
+    matches (upcoming and finished), standings, and statistics.
+    
+    Attributes:
+        mongo_uri (str): MongoDB connection URI (from environment variable).
+        mongo_db (str): Database name (from environment variable).
+        client (MongoClient): MongoDB client.
+        db (Database): MongoDB database instance.
+    """
     
     def __init__(self):
+        """Initialise la connexion avec les paramètres d'environnement."""
         self.mongo_uri = os.getenv('MONGO_URI', 'mongodb://admin:admin123@mongodb:27017/')
         self.mongo_db = os.getenv('MONGO_DB', 'flashscore')
         self.client = None
@@ -20,8 +38,13 @@ class MongoDBConnection:
         
     def connect(self) -> bool:
         """
-        Établit la connexion à MongoDB.
-        Retourne True si succès, False sinon.
+        Establish MongoDB connection with availability check.
+        
+        Returns:
+            bool: True if connection is successfully established, False otherwise.
+            
+        Note:
+            Timeouts are configured to 5 seconds to avoid blocking.
         """
         try:
             self.client = MongoClient(
@@ -29,7 +52,6 @@ class MongoDBConnection:
                 serverSelectionTimeoutMS=5000,  # Timeout de 5 secondes
                 connectTimeoutMS=5000
             )
-            # Test de connexion
             self.client.admin.command('ping')
             self.db = self.client[self.mongo_db]
             return True
@@ -40,8 +62,13 @@ class MongoDBConnection:
             print(f"Erreur inattendue lors de la connexion: {e}")
             return False
     
-    def close(self):
-        """Ferme la connexion MongoDB"""
+    def close(self) -> None:
+        """
+        Ferme la connexion MongoDB et libère les ressources.
+        
+        Note:
+            Met à None les attributs client et db après fermeture.
+        """
         if self.client:
             self.client.close()
             self.client = None
@@ -49,13 +76,20 @@ class MongoDBConnection:
     
     def get_upcoming_matches(self, target_date: Optional[str] = None) -> List[Dict]:
         """
-        Récupère les matchs à venir ou en cours.
+        Récupère les matches à venir depuis la collection matches_upcoming.
         
         Args:
-            target_date: Date au format YYYY-MM-DD (optionnel)
+            target_date (Optional[str]): Date cible au format ISO (YYYY-MM-DD).
+                                        Si None, récupère tous les matches à venir.
         
         Returns:
-            Liste de dictionnaires contenant les matchs
+            List[Dict]: Liste de dictionnaires contenant les données des matches.
+                       Chaque dictionnaire contient: league, home, away, score, status, etc.
+                       Retourne une liste vide en cas d'erreur ou si aucun match trouvé.
+        
+        Note:
+            Les matches sont triés par start_timestamp décroissant.
+            Le champ '_id' MongoDB est supprimé des résultats.
         """
         if self.db is None:
             if not self.connect():
@@ -64,15 +98,12 @@ class MongoDBConnection:
         try:
             collection = self.db.matches_upcoming
             
-            # Construire le filtre
             query = {}
             if target_date:
                 query['target_date'] = target_date
             
-            # Trier par timestamp de début (les plus récents en premier)
             matches = list(collection.find(query).sort('start_timestamp', -1))
             
-            # Supprimer le champ _id MongoDB pour faciliter la sérialisation
             for match in matches:
                 if '_id' in match:
                     del match['_id']
@@ -81,7 +112,35 @@ class MongoDBConnection:
         except Exception as e:
             print(f"Erreur lors de la récupération des matchs à venir: {e}")
             return []
-    
+
+    def get_league_upcoming_matches(self, league: str) -> List[Dict]:
+        """Récupère les matches à venir pour une ligue.
+
+        Args:
+            league (str): Nom exact de la ligue (ex: "FRANCE: Ligue 1").
+
+        Returns:
+            List[Dict]: Matches triés par start_timestamp croissant.
+        """
+        if not league:
+            return []
+
+        if self.db is None:
+            if not self.connect():
+                return []
+
+        try:
+            matches = list(
+                self.db.matches_upcoming.find({"league": league}).sort("start_timestamp", 1)
+            )
+            for match in matches:
+                if "_id" in match:
+                    del match["_id"]
+            return matches
+        except Exception as e:
+            print(f"Erreur lors de la récupération des matchs à venir pour {league}: {e}")
+            return []
+
     def get_finished_matches(
         self,
         target_date: Optional[str] = None,
@@ -89,17 +148,19 @@ class MongoDBConnection:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> List[Dict]:
-        """
-        Récupère les matchs terminés selon différents critères.
-        
+        """Récupère les matches terminés selon un filtre de période.
+
         Args:
-            target_date: Date spécifique au format YYYY-MM-DD
-            month: Mois au format YYYY-MM
-            start_date: Date de début pour une plage (YYYY-MM-DD)
-            end_date: Date de fin pour une plage (YYYY-MM-DD)
-        
+            target_date (Optional[str]): Date ISO (YYYY-MM-DD) exacte.
+            month (Optional[str]): Mois au format YYYY-MM (filtre par préfixe).
+            start_date (Optional[str]): Date ISO de début (>=).
+            end_date (Optional[str]): Date ISO de fin (<=).
+
         Returns:
-            Liste de dictionnaires contenant les matchs
+            List[Dict]: Matches terminés triés par start_timestamp décroissant.
+
+        Note:
+            Le champ '_id' MongoDB est supprimé des résultats.
         """
         if self.db is None:
             if not self.connect():
@@ -108,27 +169,21 @@ class MongoDBConnection:
         try:
             collection = self.db.matches_finished
             
-            # Construire le filtre
             query = {}
             
             if target_date:
-                # Recherche pour une date spécifique
                 query['target_date'] = target_date
             elif month:
-                # Recherche pour un mois entier (YYYY-MM)
                 query['target_date'] = {'$regex': f'^{month}'}
             elif start_date and end_date:
-                # Recherche pour une plage de dates
                 query['target_date'] = {'$gte': start_date, '$lte': end_date}
             elif start_date:
                 query['target_date'] = {'$gte': start_date}
             elif end_date:
                 query['target_date'] = {'$lte': end_date}
             
-            # Trier par timestamp de début (les plus récents en premier)
             matches = list(collection.find(query).sort('start_timestamp', -1))
             
-            # Supprimer le champ _id MongoDB
             for match in matches:
                 if '_id' in match:
                     del match['_id']
@@ -137,16 +192,81 @@ class MongoDBConnection:
         except Exception as e:
             print(f"Erreur lors de la récupération des matchs terminés: {e}")
             return []
-    
-    def get_matches_count(self, collection_name: str) -> int:
-        """
-        Retourne le nombre total de matchs dans une collection.
-        
+
+    def get_league_finished_matches(self, league: str) -> List[Dict]:
+        """Récupère les matches terminés pour une ligue.
+
         Args:
-            collection_name: 'matches_upcoming' ou 'matches_finished'
-        
+            league (str): Nom exact de la ligue.
+
         Returns:
-            Nombre de documents
+            List[Dict]: Matches triés par start_timestamp croissant.
+        """
+        if not league:
+            return []
+
+        if self.db is None:
+            if not self.connect():
+                return []
+
+        try:
+            matches = list(
+                self.db.matches_finished.find({"league": league}).sort("start_timestamp", 1)
+            )
+            for match in matches:
+                if "_id" in match:
+                    del match["_id"]
+            return matches
+        except Exception as e:
+            print(f"Erreur lors de la récupération des matchs terminés pour {league}: {e}")
+            return []
+
+    def get_league_recent_finished(self, league: str, since_date: Optional[str] = None, days: int = 9999) -> List[Dict]:
+        """Récupère les derniers matches terminés d'une ligue.
+
+        Args:
+            league (str): Nom exact de la ligue.
+            since_date (Optional[str]): Date ISO minimale (>=). Si None, calcule via `days`.
+            days (int): Fenêtre en jours si `since_date` est None.
+
+        Returns:
+            List[Dict]: Matches triés par start_timestamp croissant.
+        """
+        if not league:
+            return []
+
+        if self.db is None:
+            if not self.connect():
+                return []
+
+        try:
+            query: Dict = {"league": league}
+            if since_date:
+                query["target_date"] = {"$gte": since_date}
+            else:
+                days = max(1, days)
+                cutoff = (date.today() - timedelta(days=days)).isoformat()
+                query["target_date"] = {"$gte": cutoff}
+
+            matches = list(
+                self.db.matches_finished.find(query).sort("start_timestamp", 1)
+            )
+            for match in matches:
+                if "_id" in match:
+                    del match["_id"]
+            return matches
+        except Exception as e:
+            print(f"Erreur lors de la récupération des matchs terminés récents pour {league}: {e}")
+            return []
+
+    def get_matches_count(self, collection_name: str) -> int:
+        """Compte le nombre de documents dans une collection.
+
+        Args:
+            collection_name (str): Nom de la collection (ex: "matches_upcoming").
+
+        Returns:
+            int: Nombre de documents, 0 en cas d'erreur.
         """
         if self.db is None:
             if not self.connect():
@@ -159,14 +279,13 @@ class MongoDBConnection:
             return 0
     
     def get_latest_scrape_time(self, collection_name: str) -> Optional[str]:
-        """
-        Retourne l'heure du dernier scraping pour une collection.
-        
+        """Retourne la date/heure du dernier scraping pour une collection.
+
         Args:
-            collection_name: 'matches_upcoming' ou 'matches_finished'
-        
+            collection_name (str): Nom de la collection.
+
         Returns:
-            Datetime ISO string ou None
+            Optional[str]: Timestamp ISO 8601 si trouvé, sinon None.
         """
         if self.db is None:
             if not self.connect():
@@ -185,50 +304,20 @@ class MongoDBConnection:
             print(f"Erreur lors de la récupération du dernier scrape: {e}")
             return None
     
-    def delete_old_upcoming_matches(self, hours: int = 24) -> int:
-        """
-        Supprime les matchs à venir dont la date de début est dépassée depuis X heures.
-        Utile pour nettoyer les données obsolètes.
-        
-        Args:
-            hours: Nombre d'heures avant de considérer un match comme obsolète
-        
-        Returns:
-            Nombre de documents supprimés
-        """
-        if self.db is None:
-            if not self.connect():
-                return 0
-        
-        try:
-            from datetime import datetime, timedelta
-            cutoff_timestamp = int((datetime.utcnow() - timedelta(hours=hours)).timestamp())
-            
-            result = self.db.matches_upcoming.delete_many({
-                'start_timestamp': {'$lt': cutoff_timestamp}
-            })
-            return result.deleted_count
-        except Exception as e:
-            print(f"Erreur lors de la suppression des matchs obsolètes: {e}")
-            return 0
-    
     def get_all_leagues(self) -> List[str]:
-        """
-        Récupère toutes les ligues uniques depuis les deux collections.
-        
+        """Récupère la liste de toutes les ligues connues (upcoming + finished).
+
         Returns:
-            Liste des noms de ligues triés alphabétiquement
+            List[str]: Ligues distinctes triées.
         """
         if self.db is None:
             if not self.connect():
                 return []
         
         try:
-            # Récupérer toutes les ligues uniques depuis les deux collections
             leagues_upcoming = self.db['matches_upcoming'].distinct('league')
             leagues_finished = self.db['matches_finished'].distinct('league')
             
-            # Fusionner et supprimer les doublons
             all_leagues = list(set(leagues_upcoming + leagues_finished))
             all_leagues.sort()
             
@@ -237,13 +326,56 @@ class MongoDBConnection:
             print(f"Erreur lors de la récupération des ligues: {e}")
             return []
 
+    def get_league_standings(self, league_name: str) -> Optional[Dict]:
+        """Récupère le classement (standings) d'une ligue.
 
-# Instance globale (singleton pattern)
+        Args:
+            league_name (str): Nom exact de la ligue.
+
+        Returns:
+            Optional[Dict]: Document standings sans `_id`, ou None si absent/erreur.
+        """
+        if not league_name:
+            return None
+
+        if self.db is None:
+            if not self.connect():
+                return None
+
+        try:
+            standing = self.db.standings.find_one({"league_name": league_name})
+            if standing and "_id" in standing:
+                del standing["_id"]
+            return standing
+        except Exception as e:
+            print(f"Erreur lors de la récupération du classement pour {league_name}: {e}")
+            return None
+
+    def get_all_standings(self) -> List[Dict]:
+        """Récupère tous les classements disponibles.
+
+        Returns:
+            List[Dict]: Liste des documents standings sans `_id`.
+        """
+        if self.db is None:
+            if not self.connect():
+                return []
+
+        try:
+            standings = list(self.db.standings.find({}))
+            for standing in standings:
+                if "_id" in standing:
+                    del standing["_id"]
+            return standings
+        except Exception as e:
+            print(f"Erreur lors de la récupération des classements: {e}")
+            return []
+
+
 _db_connection = None
 
 
 def get_db_connection() -> MongoDBConnection:
-    """Retourne l'instance globale de connexion MongoDB"""
     global _db_connection
     if _db_connection is None:
         _db_connection = MongoDBConnection()

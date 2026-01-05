@@ -1,15 +1,16 @@
-"""
-Composant Navbar pour la navigation entre les pages
-"""
+"""Composant Navbar utilisé dans toutes les pages Dash."""
+
 from dash import html, dcc
 
 
 def create_navbar(current_page="home"):
-    """
-    Crée une navbar simple avec navigation
-    
+    """Create the navigation bar.
+
     Args:
-        current_page: Page actuellement active ("home" ou "leagues")
+        current_page: Page key used to highlight the active link.
+
+    Returns:
+        A Dash HTML container for the navbar.
     """
     return html.Div(
         className="navbar-container",
@@ -28,6 +29,14 @@ def create_navbar(current_page="home"):
                                 ],
                                 href="/",
                                 className=f"nav-link {'active' if current_page == 'home' else ''}",
+                            ),
+                            dcc.Link(
+                                [
+                                    html.Span("🏆", className="nav-icon"),
+                                    html.Span("Coupes", className="nav-text"),
+                                ],
+                                href="/cups",
+                                className=f"nav-link {'active' if current_page == 'cups' else ''}",
                             ),
                             dcc.Link(
                                 [
