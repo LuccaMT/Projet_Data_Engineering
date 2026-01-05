@@ -4,6 +4,16 @@ FROM python:3.11-slim
 # Définir le répertoire de travail
 WORKDIR /app
 
+# Installer les dépendances système pour Selenium et Chrome
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    unzip \
+    curl \
+    chromium \
+    chromium-driver \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copier les fichiers de requirements
 COPY requirements.txt .
 
