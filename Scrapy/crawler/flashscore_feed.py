@@ -1,29 +1,46 @@
+"""
+Flashscore feed scraping and parsing module.
+
+This module handles the retrieval and parsing of football match data
+from Flashscore's obfuscated feed API. It provides functions to:
+- Download match data for a given date
+- Parse Flashscore's proprietary format
+- Convert data into structured Python objects
+
+The Flashscore data format uses special separators:
+- '~': segment separator
+- '÷' (\\xf7): key/value separator
+- '¬' (\\xac): entry separator within a segment
+"""
+
+# Standard library
 import json
 from dataclasses import dataclass, asdict
 from datetime import date, datetime, timedelta
 from typing import Dict, Generator, List, Optional
 
+# Third-party
 import requests
 
 
-# Flashscore utilise des flux obfusqués sous /x/feed/.
-# Les réponses sont en texte brut avec :
-#   - séparateur de segment : "~"
-#   - séparateur clé/valeur : "\xf7" (signe de division)
-#   - séparateur d'entrée dans un segment : "\xac" (signe de négation)
+# Flashscore uses obfuscated feeds under /x/feed/.
+# Responses are in plain text with:
+#   - segment separator: "~"
+#   - key/value separator: "\xf7" (division sign)
+#   - entry separator within a segment: "\xac" (negation sign)
 SEGMENT_SEPARATOR = "~"
 ENTRY_SEPARATOR = "\xac"
 KV_SEPARATOR = "\xf7"
 
-# Modèle d'URL du flux :
-#  - sport_id est 1 pour le football
-#  - offset correspond au décalage en jours par rapport à aujourd'hui (par exemple, 0 = aujourd'hui, 1 = demain, -1 = hier)
-#  - variant peut être laissé à 0 ; les autres variantes ne changent que l'ordre/la visibilité
+# Feed URL template:
+#  - sport_id is 1 for football
+#  - offset corresponds to the day offset from today (e.g., 0 = today, 1 = tomorrow, -1 = yesterday)
+#  - variant can be left at 0; other variants only change order/visibility
 FEED_URL = "https://d.flashscore.com/x/feed/f_{sport_id}_{offset}_{variant}_fr_1"
 
 REQUEST_HEADERS = {
     "User-Agent": "ProjetDataEngBot/0.1 (+contact)",
-    # En-tête requis pour accéder aux points de terminaison des flux.
+    # Required header to access feed endpoints.
     "x-fsign": "SW9D1eZo",
 }
 
@@ -35,6 +52,18 @@ STATUS_MAP = {
 
 
 def _safe_int(value: Optional[str]) -> Optional[int]:
+    """
+    Safely convert a string to an integer.
+    
+    Args:
+        value (Optional[str]): String to convert.
+    
+    Returns:
+        Optional[int]: Converted integer or None if conversion fails or value is empty.
+        
+    Note:
+        Returns None for values: None, "", "-", or if ValueError occurs.
+    """
     try:
         return int(value) if value not in (None, "", "-") else None
     except ValueError:
@@ -42,6 +71,19 @@ def _safe_int(value: Optional[str]) -> Optional[int]:
 
 
 def _to_iso_utc(ts: Optional[str]) -> Optional[str]:
+    """
+    Convert a Unix timestamp to an ISO 8601 UTC string.
+    
+    Args:
+        ts (Optional[str]): Unix timestamp as a string.
+    
+    Returns:
+        Optional[str]: Date/time in ISO 8601 format with 'Z', or None on error.
+        
+    Example:
+        >>> _to_iso_utc("1704484800")
+        '2024-01-05T20:00:00Z'
+    """
     try:
         return datetime.utcfromtimestamp(int(ts)).isoformat() + "Z" if ts else None
     except (ValueError, OSError, OverflowError):
@@ -49,11 +91,48 @@ def _to_iso_utc(ts: Optional[str]) -> Optional[str]:
 
 
 def _date_to_offset(target: date) -> int:
+    """
+    Calculate the number of days between a target date and today.
+    
+    Args:
+        target (date): Target date.
+    
+    Returns:
+        int: Number of days offset (positive = future, negative = past, 0 = today).
+        
+    Example:
+        If today is 2024-01-05:
+        >>> _date_to_offset(date(2024, 1, 6))
+        1
+        >>> _date_to_offset(date(2024, 1, 4))
+        -1
+    """
     return (target - date.today()).days
 
 
 @dataclass
 class Match:
+    """
+    Representation of a football match extracted from the Flashscore feed.
+    
+    Attributes:
+        id (Optional[str]): Unique match identifier on Flashscore.
+        start_timestamp (Optional[int]): Timestamp Unix du début du match.
+        start_time_utc (Optional[str]): Date/heure de début au format ISO 8601.
+        status_code (Optional[str]): Code de statut brut ('1', '2', '3').
+        status (str): Statut lisible ('not_started', 'live', 'finished', 'unknown').
+        league (Optional[str]): Nom de la compétition.
+        country (Optional[str]): Pays de la compétition.
+        competition_path (Optional[str]): Chemin complet de la compétition sur Flashscore.
+        home (Optional[str]): Nom de l'équipe à domicile.
+        away (Optional[str]): Nom de l'équipe à l'extérieur.
+        home_score (Optional[int]): Score de l'équipe à domicile (temps plein).
+        away_score (Optional[int]): Score de l'équipe à l'extérieur (temps plein).
+        home_score_ht (Optional[int]): Score à domicile à la mi-temps.
+        away_score_ht (Optional[int]): Score à l'extérieur à la mi-temps.
+        home_logo (Optional[str]): URL du logo de l'équipe à domicile.
+        away_logo (Optional[str]): URL du logo de l'équipe à l'extérieur.
+    """
     id: Optional[str]
     start_timestamp: Optional[int]
     start_time_utc: Optional[str]
@@ -73,6 +152,24 @@ class Match:
 
 
 def fetch_feed_for_date(target: date, variant: int = 0, sport_id: int = 1) -> str:
+    """
+    Download the Flashscore feed for a given date.
+    
+    Args:
+        target (date): Target date for which to retrieve matches.
+        variant (int, optional): Feed variant (default: 0). Affects order/visibility.
+        sport_id (int, optional): Sport ID (default: 1 for football).
+    
+    Returns:
+        str: Raw feed content in Flashscore's proprietary format.
+        
+    Raises:
+        requests.HTTPError: If HTTP request fails (non-2xx status code).
+        requests.Timeout: If request exceeds 20 seconds.
+        
+    Note:
+        Requires 'x-fsign' header for authentication.
+    """
     url = FEED_URL.format(sport_id=sport_id, offset=_date_to_offset(target), variant=variant)
     resp = requests.get(url, headers=REQUEST_HEADERS, timeout=20)
     resp.raise_for_status()
@@ -80,6 +177,25 @@ def fetch_feed_for_date(target: date, variant: int = 0, sport_id: int = 1) -> st
 
 
 def parse_feed(feed_text: str) -> Generator[Match, None, None]:
+    """
+    Parse the raw Flashscore feed and generate Match objects.
+    
+    This function is critical as it is used by all spiders.
+    It decodes Flashscore's proprietary format into structured Python objects.
+    
+    Args:
+        feed_text (str): Raw Flashscore feed content.
+    
+    Yields:
+        Match: Match objects one by one for each match found in the feed.
+        
+    Note:
+        The feed contains two types of segments:
+        - Competition segments (with 'ZA' key): define the context
+        - Match segments (with 'AA' key): contain match data
+        
+        Competition segments must precede their associated match segments.
+    """
     current_comp: Dict[str, str] = {}
 
     for segment in feed_text.split(SEGMENT_SEPARATOR):
@@ -92,12 +208,12 @@ def parse_feed(feed_text: str) -> Generator[Match, None, None]:
                 key, value = entry.split(KV_SEPARATOR, 1)
                 kv[key] = value
 
-        # En-tête de compétition (ZA = nom de la compétition, ZY = pays, ZL = chemin)
+        # Competition header (ZA = competition name, ZY = country, ZL = path)
         if "ZA" in kv:
             current_comp = kv
             continue
 
-        # Enregistrement d'un match (AA = identifiant du match)
+        # Match record (AA = match identifier)
         if "AA" in kv:
             status_code = kv.get("AB")
 
@@ -126,16 +242,3 @@ def parse_feed(feed_text: str) -> Generator[Match, None, None]:
                 home_logo=_logo_url(kv.get("OA")),
                 away_logo=_logo_url(kv.get("OB")),
             )
-
-
-def dump_matches(matches: List[Match], output_path: str) -> None:
-    data = [asdict(m) for m in matches]
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def daterange(start: date, end: date) -> Generator[date, None, None]:
-    current = start
-    while current <= end:
-        yield current
-        current = current + timedelta(days=1)

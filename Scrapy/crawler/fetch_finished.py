@@ -23,6 +23,11 @@ from flashscore_feed import (
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse les arguments CLI pour le scraping des matches terminés.
+
+    Returns:
+        argparse.Namespace: Arguments parsés (date/range/week/month/year/offset/variant/output).
+    """
     parser = argparse.ArgumentParser(
         description="Recupere les matches de football termines pour une date ou une plage de dates via Scrapy.",
     )
@@ -71,13 +76,23 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
+    """Résout une plage de dates à partir des options CLI.
+
+    Priorité: year > week_date > month > start/end > date > offset > mois courant.
+
+    Args:
+        args (argparse.Namespace): Arguments issus de `parse_args()`.
+
+    Returns:
+        Tuple[date, date, str]: (start_date, end_date, label) où label sert pour logs/export.
+    """
     if args.year:
         start = date(args.year, 1, 1)
         end = date(args.year, 12, 31)
         label = str(args.year)
         return start, end, label
 
-    # Semaine (lundi -> dimanche) si specifiee
+
     if args.week_date:
         target = date.fromisoformat(args.week_date)
         start = target - timedelta(days=target.weekday())
@@ -85,14 +100,13 @@ def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
         label = f"week_{start.isoformat()}_to_{end.isoformat()}"
         return start, end, label
 
-    # Mois cible (YYYY-MM) sinon mois courant par defaut
+
     if args.month:
         year, month = map(int, args.month.split("-"))
         target = date(year, month, 1)
     else:
         target = date.today()
 
-    # Plage explicite jour a jour
     if args.start_date or args.end_date:
         start_str = args.start_date or args.end_date
         end_str = args.end_date or args.start_date
@@ -109,7 +123,6 @@ def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
         label = f"{start.isoformat()}_to_{end.isoformat()}"
         return start, end, label
 
-    # Jour unique si --date fourni (ou via offset)
     if args.date:
         target_day = date.fromisoformat(args.date)
         return target_day, target_day, target_day.isoformat()
@@ -117,7 +130,7 @@ def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
         target_day = date.today() + timedelta(days=args.offset)
         return target_day, target_day, target_day.isoformat()
 
-    # Par defaut: mois du target (courant ou fourni)
+
     start = target.replace(day=1)
     if start.month == 12:
         end = date(start.year + 1, 1, 1) - timedelta(days=1)
@@ -130,15 +143,21 @@ def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
 class FinishedSpider(scrapy.Spider):
     name = "flashscore_finished"
 
-    # On ne surcharge pas les custom_settings pour garder les pipelines du projet
-    # custom_settings sont déjà définis dans settings.py
-
     def __init__(self, dates: Iterable[date], variant: int, *args, **kwargs):
+        """Initialise le spider.
+
+        Args:
+            dates (Iterable[date]): Dates à scraper.
+            variant (int): Variante du feed Flashscore.
+            *args: Arguments Scrapy.
+            **kwargs: Arguments Scrapy.
+        """
         super().__init__(*args, **kwargs)
         self.dates = list(dates)
         self.variant = variant
 
     def start_requests(self):
+        """Génère les requêtes vers le feed Flashscore pour chaque date."""
         for dt in self.dates:
             offset = _date_to_offset(dt)
             url = FEED_URL.format(sport_id=1, offset=offset, variant=self.variant)
@@ -151,6 +170,14 @@ class FinishedSpider(scrapy.Spider):
             )
 
     def parse_feed_response(self, response: scrapy.http.TextResponse):
+        """Parse la réponse du feed et yield les matches terminés.
+
+        Args:
+            response (scrapy.http.TextResponse): Réponse HTTP.
+
+        Yields:
+            dict: Item match terminé prêt pour MongoDB.
+        """
         for match in parse_feed(response.text):
             if match.status_code == "3":
                 item = asdict(match)
@@ -159,14 +186,19 @@ class FinishedSpider(scrapy.Spider):
 
 
 def main() -> None:
+    """Point d'entrée CLI.
+
+    Résout la plage de dates, configure Scrapy, lance le spider, et optionnellement exporte en JSON.
+
+    Returns:
+        None
+    """
     args = parse_args()
     start, end, label = resolve_range(args)
     dates = list(daterange(start, end))
 
-    # Charger les settings du projet Scrapy (incluant MongoDB)
     settings = get_project_settings()
     
-    # Récupérer les variables d'environnement pour MongoDB si disponibles
     mongo_uri = os.getenv('MONGO_URI')
     mongo_db = os.getenv('MONGO_DB')
     
@@ -175,10 +207,8 @@ def main() -> None:
     if mongo_db:
         settings.set('MONGO_DB', mongo_db)
     
-    # Ajouter le User-Agent
     settings.set('USER_AGENT', REQUEST_HEADERS["User-Agent"])
     
-    # Si un output est spécifié, on garde aussi l'export JSON
     if args.output:
         output_path = args.output
         settings.set('FEEDS', {
@@ -188,16 +218,16 @@ def main() -> None:
                 "encoding": "utf-8",
             }
         })
-        print(f"Export JSON configuré vers: {output_path}")
+        print(f"JSON export configured to: {output_path}")
     
     process = CrawlerProcess(settings=settings)
     process.crawl(FinishedSpider, dates=dates, variant=args.variant)
     process.start()
     
     if mongo_uri:
-        print(f"✅ Données stockées dans MongoDB ({mongo_db}.matches_finished)")
+        print(f"✅ Data stored in MongoDB ({mongo_db}.matches_finished)")
     if args.output:
-        print(f"✅ Export JSON terminé -> {output_path}")
+        print(f"✅ JSON export completed -> {output_path}")
 
 
 if __name__ == "__main__":
