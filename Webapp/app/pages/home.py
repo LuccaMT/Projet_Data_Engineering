@@ -1,44 +1,67 @@
-"""
-Page d'accueil du dashboard Flashscore
-"""
+"""Page d'accueil : tableau de bord + filtres pour les matchs."""
+
 import datetime
+import os
 
 import pandas as pd
-from dash import dcc, html, dash_table, Input, Output, State, callback
+from dash import dcc, html, dash_table, Input, Output, State, callback, callback_context
 from dash.exceptions import PreventUpdate
 
 from database import get_db_connection
-from scraper import scrape_upcoming_matches, scrape_finished_matches
 from components.navbar import create_navbar
+
+
+# Vérifier si on est en mode DEV
+IS_DEV = os.getenv('DEV', 'False').lower() == 'true'
 
 
 today = datetime.date.today()
 today_str = today.isoformat()
-current_month = f"{today:%Y-%m}"
 
-# Limites de dates basées sur les contraintes de l'API Flashscore
-# L'API ne fournit des données que pour ±7 jours autour de la date actuelle
-MIN_DATE = today - datetime.timedelta(days=7)
-MAX_DATE = today + datetime.timedelta(days=7)
+# Déterminer la saison de football (juillet - juin)
+if today.month >= 7:
+    season_start = datetime.date(today.year, 7, 1)
+    season_end = datetime.date(today.year + 1, 6, 30)
+else:
+    season_start = datetime.date(today.year - 1, 7, 1)
+    season_end = datetime.date(today.year, 6, 30)
+
+MIN_DATE = season_start
+MAX_DATE = season_end
+
+TOP_5_LEAGUES = [
+    "FRANCE: Ligue 1",
+    "SPAIN: LaLiga",
+    "ENGLAND: Premier League",
+    "GERMANY: Bundesliga",
+    "ITALY: Serie A",
+]
+
+LEAGUE_EMOJIS = {
+    "FRANCE: Ligue 1": "🇫🇷",
+    "SPAIN: LaLiga": "🇪🇸",
+    "ENGLAND: Premier League": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "GERMANY: Bundesliga": "🇩🇪",
+    "ITALY: Serie A": "🇮🇹",
+}
 
 
 def load_matches_from_db(dataset_type: str, **kwargs) -> pd.DataFrame:
-    """
-    Charge les matchs depuis MongoDB.
-    
+    """Load matches from MongoDB.
+
     Args:
-        dataset_type: 'upcoming' ou 'finished'
-        **kwargs: Arguments pour filtrer (target_date, month, start_date, end_date)
-    
+        dataset_type: Either "upcoming" or "finished".
+        **kwargs: Filter parameters (e.g. target_date, month, start_date, end_date).
+
     Returns:
-        DataFrame avec les matchs
+        A DataFrame of match documents (empty if none / on error).
     """
     db = get_db_connection()
     
     try:
         if dataset_type == "upcoming":
             matches = db.get_upcoming_matches(target_date=kwargs.get('target_date'))
-        else:  # finished
+        else:
             matches = db.get_finished_matches(
                 target_date=kwargs.get('target_date'),
                 month=kwargs.get('month'),
@@ -56,7 +79,11 @@ def load_matches_from_db(dataset_type: str, **kwargs) -> pd.DataFrame:
 
 
 def get_db_stats() -> str:
-    """Retourne des statistiques sur la base de données"""
+    """Build a short textual summary of database stats.
+
+    Returns:
+        A multi-line string with counts and last scrape timestamps.
+    """
     db = get_db_connection()
     
     try:
@@ -81,19 +108,48 @@ def get_db_stats() -> str:
         return f"Erreur lors de la récupération des stats: {e}"
 
 
-def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
+def get_today_stats(df: pd.DataFrame) -> dict:
+    """Compute stats used by the home KPI cards.
+
+    Args:
+        df: DataFrame of matches (typically upcoming/live).
+
+    Returns:
+        Dict with keys: total, live, upcoming, finished.
     """
-    Sélectionne les colonnes utiles et formate le score, l'heure (locale) et les logos.
+    if df.empty:
+        return {"total": 0, "live": 0, "upcoming": 0, "finished": 0}
+    
+    today_df = df[df.get('start_time_utc', pd.Series()).notna()]
+    
+    total = len(today_df)
+    live = len(today_df[today_df.get('status') == 'in_progress'])
+    upcoming = len(today_df[today_df.get('status') == 'not_started'])
+    finished = len(today_df[today_df.get('status') == 'finished'])
+    
+    return {"total": total, "live": live, "upcoming": upcoming, "finished": finished}
+
+
+def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
+    """Convert a matches DataFrame into DataTable columns and rows.
+
+    Args:
+        df: Matches DataFrame.
+
+    Returns:
+        Tuple (columns, records) compatible with Dash DataTable.
     """
     if df.empty:
         return [], []
 
     def logo_md(name: str, url: str) -> str:
+        """Génère une balise HTML <img> pour un logo d'équipe (utilisée dans les cellules markdown)."""
         if url:
             return f"<img src='{url}' alt='{name}' style='height:28px;width:28px;border-radius:50%;object-fit:contain;'/>"
         return ""
 
     def fmt_kickoff(ts: str) -> str:
+        """Formate l'heure de coup d'envoi en fuseau horaire local pour l'affichage."""
         if not ts:
             return ""
         try:
@@ -104,25 +160,38 @@ def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             return ts
 
     def fmt_score(row) -> str:
+        """Formate le score comme 'X - Y' ou 'N/A' si manquant."""
         hs = row.get("home_score")
         as_ = row.get("away_score")
+        
         if hs is None or as_ is None or pd.isna(hs) or pd.isna(as_):
             return "N/A"
-        return f"{int(hs)} - {int(as_)}"
+        
+        try:
+            hs_str = str(hs).strip()
+            as_str = str(as_).strip()
+            
+            if hs_str == "-" or as_str == "-" or hs_str == "" or as_str == "":
+                return "N/A"
+            
+            hs_int = int(hs_str)
+            as_int = int(as_str)
+            return f"{hs_int} - {as_int}"
+        except (ValueError, TypeError):
+            return "N/A"
     
     def normalize_status(row) -> str:
-        """Détecter les matches annulés (scores manquants) même si status_code=3."""
+        """Normalise le statut et gère les cas limites 'cancelled'."""
         status = row.get("status", "")
         status_code = str(row.get("status_code") or "")
         hs = row.get("home_score")
         as_ = row.get("away_score")
-        # Si le flux indique 'terminé' mais sans score, on considère comme annulé/reporté
         if status_code == "3" and (hs is None or pd.isna(hs)) and (as_ is None or pd.isna(as_)):
             return "cancelled"
         return status or "unknown"
     
     def fmt_status(status: str, status_code: str) -> str:
-        """Formater le status en français"""
+        """Mappe les valeurs de statut internes vers des labels français avec icônes."""
         status_map = {
             'not_started': '⏳ Programmé',
             'in_progress': '🔴 En cours',
@@ -161,19 +230,20 @@ def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             col_def["presentation"] = "markdown"
         columns.append(col_def)
 
-    return columns, df_display.to_dict("records")
+    records = df_display.to_dict("records")
+    return columns, records
 
 
-def initialize_data():
-    """
-    Vérifie si des données existent dans MongoDB au démarrage.
-    Le scraping initial est fait automatiquement par le conteneur Scrapy.
+def initialize_data() -> str:
+    """Check database connectivity and basic counts.
+
+    Returns:
+        A multi-line string describing the initialization state.
     """
     db = get_db_connection()
     
     messages = []
     
-    # Vérifier la connexion
     if not db.connect():
         messages.append("❌ Impossible de se connecter à MongoDB")
         messages.append("⚠️  Vérifiez que le service MongoDB est démarré")
@@ -181,45 +251,21 @@ def initialize_data():
     
     messages.append("✅ Connexion MongoDB établie")
     
-    # Vérifier les données existantes
     upcoming_count = db.get_matches_count('matches_upcoming')
     finished_count = db.get_matches_count('matches_finished')
     
-    messages.append(f"📊 Matchs à venir en base: {upcoming_count}")
-    messages.append(f"📊 Matchs terminés en base: {finished_count}")
+    messages.append(f"📊 Matchs à venir: {upcoming_count}")
+    messages.append(f"📊 Matchs terminés: {finished_count}")
     
-    # Scraping automatique si des dates manquent dans les 7 prochains jours
-    auto_scrape_logs: list[str] = []
-    window_days = 8  # aujourd'hui + 7 jours
-    for offset in range(window_days):
-        dt = today + datetime.timedelta(days=offset)
-        dt_str = dt.isoformat()
-        # Vérifier s'il y a déjà des matchs pour cette date
-        existing = db.get_upcoming_matches(target_date=dt_str)
-        if existing:
-            continue
-        success, msg = scrape_upcoming_matches(dt_str)
-        prefix = "✅" if success else "⚠️"
-        auto_scrape_logs.append(f"{prefix} Scrape auto {dt_str}: {msg}")
-    
-    if auto_scrape_logs:
-        messages.append("")
-        messages.append("🔄 Scraping auto des 7 prochains jours (au premier démarrage) :")
-        messages.extend(auto_scrape_logs)
-    
-    # Message informatif si pas de données
     if upcoming_count == 0 and finished_count == 0:
         messages.append("")
-        messages.append("ℹ️  Aucune donnée trouvée")
-        messages.append("💡 Le scraping automatique s'exécute au démarrage du conteneur Scrapy")
-        messages.append("💡 Il est possible qu'il n'y ait pas de matchs pour aujourd'hui")
-        messages.append("💡 Utilisez le bouton 'Rafraîchir' ci-dessous pour scraper une date spécifique")
+        messages.append("ℹ️  Aucune donnée - scraping en cours au démarrage")
     
     return "\n".join(messages)
 
 
 def create_layout():
-    """Create the home page layout."""
+    """Crée le layout de la page d'accueil."""
     return html.Div(
         className="app-wrapper",
         children=[
@@ -253,8 +299,55 @@ def create_layout():
             ],
         ),
         
-        # Navbar
+        # Navbar (avec lien vers la page de sélection des ligues)
         create_navbar(current_page="home"),
+        
+        # Statistics Cards
+        html.Div(
+            className="stats-cards-container",
+            children=[
+                html.Div(
+                    className="stat-card",
+                    children=[
+                        html.Div(className="stat-icon", children="📊"),
+                        html.Div(className="stat-content", children=[
+                            html.Div(id="stat-total", className="stat-value", children="0"),
+                            html.Div(className="stat-label", children="Matchs aujourd'hui")
+                        ])
+                    ]
+                ),
+                html.Div(
+                    className="stat-card stat-card-live",
+                    children=[
+                        html.Div(className="stat-icon live-icon", children="🔴"),
+                        html.Div(className="stat-content", children=[
+                            html.Div(id="stat-live", className="stat-value", children="0"),
+                            html.Div(className="stat-label", children="En direct")
+                        ])
+                    ]
+                ),
+                html.Div(
+                    className="stat-card",
+                    children=[
+                        html.Div(className="stat-icon", children="⏰"),
+                        html.Div(className="stat-content", children=[
+                            html.Div(id="stat-upcoming", className="stat-value", children="0"),
+                            html.Div(className="stat-label", children="À venir")
+                        ])
+                    ]
+                ),
+                html.Div(
+                    className="stat-card",
+                    children=[
+                        html.Div(className="stat-icon", children="✅"),
+                        html.Div(className="stat-content", children=[
+                            html.Div(id="stat-finished", className="stat-value", children="0"),
+                            html.Div(className="stat-label", children="Terminés")
+                        ])
+                    ]
+                ),
+            ]
+        ),
         
         # Main content
         html.Div(
@@ -264,66 +357,50 @@ def create_layout():
                 html.Div(
                     className="control-panel",
                     children=[
-                        html.H3("Paramètres de recherche"),
+                        html.H3("⚙️ Paramètres de recherche"),
                         
-                        # Section 1: Type de données
+                        # Type de données
                         html.Div(
-                            style={"marginBottom": "24px"},
+                            className="control-section",
                             children=[
-                                html.Div(
-                                    className="control-item",
-                                    children=[
-                                        html.Label("Type de données", style={"marginBottom": "8px", "display": "block"}),
-                                        dcc.Dropdown(
-                                            id="dataset-type",
-                                            options=[
-                                                {"label": "⏰ Matchs à venir / en cours", "value": "upcoming"},
-                                                {"label": "✅ Matchs terminés", "value": "finished"},
-                                            ],
-                                            value="upcoming",
-                                            clearable=False,
-                                        ),
+                                html.Label("Type de données", className="control-label"),
+                                dcc.Dropdown(
+                                    id="dataset-type",
+                                    options=[
+                                        {"label": "⏰ Matchs à venir / en cours", "value": "upcoming"},
+                                        {"label": "✅ Matchs terminés", "value": "finished"},
                                     ],
+                                    value="upcoming",
+                                    clearable=False,
+                                    className="control-dropdown",
                                 ),
                             ],
                         ),
                         
-                        # Section 2: Sélection de date
+                        # Période de recherche
                         html.Div(
-                            style={
-                                "backgroundColor": "#f0f9ff",
-                                "padding": "20px",
-                                "borderRadius": "12px",
-                                "border": "2px solid #bfdbfe",
-                                "marginBottom": "20px"
-                            },
+                            className="control-section period-section",
                             children=[
-                                html.Label("📅 Période de recherche", style={
-                                    "fontSize": "16px",
-                                    "fontWeight": "700",
-                                    "color": "#1e40af",
-                                    "marginBottom": "12px",
-                                    "display": "block"
-                                }),
-                                html.P(
-                                    f"⚠️ Flashscore limite les données à ±7 jours (du {MIN_DATE:%d/%m/%Y} au {MAX_DATE:%d/%m/%Y})",
-                                    style={
-                                        "fontSize": "12px",
-                                        "color": "#1e40af",
-                                        "margin": "0 0 16px 0",
-                                        "fontStyle": "italic",
-                                        "fontWeight": "500"
-                                    }
-                                ),
-                                
-                                # Date picker et checkbox
                                 html.Div(
-                                    style={"display": "grid", "gridTemplateColumns": "2fr 1fr", "gap": "16px", "alignItems": "start"},
+                                    className="period-header",
+                                    children=[
+                                        html.Label("📅 Période de recherche", className="control-label"),
+                                        html.Div(
+                                            className="info-badge",
+                                            children=[
+                                                html.Span("ℹ️", style={"marginRight": "6px"}),
+                                                f"Saison {season_start.year}/{season_end.year} disponible"
+                                            ]
+                                        )
+                                    ]
+                                ),
+                                html.Div(
+                                    className="date-controls",
                                     children=[
                                         html.Div(
-                                            className="date-picker-container",
+                                            className="date-input-wrapper",
                                             children=[
-                                                html.Label("Date", style={"marginBottom": "8px", "display": "block", "fontWeight": "600"}),
+                                                html.Label("Date", className="sub-label"),
                                                 dcc.DatePickerSingle(
                                                     id="date-input",
                                                     date=today_str,
@@ -334,13 +411,15 @@ def create_layout():
                                                     placeholder="Choisir une date",
                                                     first_day_of_week=1,
                                                     month_format="MMMM YYYY",
+                                                    with_portal=True,
                                                     style={"width": "100%"},
                                                 ),
                                             ],
                                         ),
                                         html.Div(
+                                            className="checkbox-wrapper",
                                             children=[
-                                                html.Label("Options", style={"marginBottom": "8px", "display": "block", "fontWeight": "600"}),
+                                                html.Label("Options", className="sub-label"),
                                                 dcc.Checklist(
                                                     id="month-mode",
                                                     options=[{"label": " Tout le mois", "value": "month"}],
@@ -354,37 +433,18 @@ def create_layout():
                             ],
                         ),
                         
-                        # Section 3: Action
+                        # Info sur le scraping automatique
                         html.Div(
-                            style={"display": "flex", "flexDirection": "column", "gap": "12px"},
+                            className="control-section",
                             children=[
-                                html.Button(
-                                    "🔄 Rafraîchir (scraper la date choisie)",
-                                    id="refresh-button",
-                                    n_clicks=0,
-                                    className="refresh-button",
-                                ),
                                 html.Div(
-                                    style={
-                                        "backgroundColor": "#eff6ff",
-                                        "padding": "12px 16px",
-                                        "borderRadius": "8px",
-                                        "border": "1px solid #dbeafe",
-                                        "display": "flex",
-                                        "alignItems": "center",
-                                        "gap": "8px"
-                                    },
+                                    className="info-box",
                                     children=[
-                                        html.Span("💡", style={"fontSize": "18px"}),
-                                        html.P(
-                                            "Les données sont automatiquement scrapées par le conteneur Scrapy toutes les 1-10 secondes (délai aléatoire)",
-                                            style={
-                                                "fontSize": "13px",
-                                                "color": "#1e40af",
-                                                "margin": "0",
-                                                "fontWeight": "500"
-                                            }
-                                        ),
+                                        html.Span("💡", className="info-icon"),
+                                        html.Div(
+                                            className="info-text",
+                                            children="Tous les matchs de la saison sont disponibles. Les données sont automatiquement mises à jour toutes les 1-10 secondes."
+                                        )
                                     ],
                                 ),
                             ],
@@ -392,20 +452,57 @@ def create_layout():
                     ],
                 ),
                 
-                # Status Panel
+                # Status Panel (uniquement en mode DEV)
                 html.Div(
                     className="status-panel",
+                    style={"display": "block" if IS_DEV else "none"},
                     children=[
                         html.H3("Statut"),
                         html.Pre(id="status-text", className="status-text", children="Chargement..."),
                     ],
-                ),
+                ) if IS_DEV else html.Div(id="status-text", style={"display": "none"}, children=""),
                 
                 # Data Table
                 html.Div(
                     className="table-container",
                     children=[
-                        html.H3("Résultats"),
+                        html.Div(
+                            className="table-header-actions",
+                            children=[
+                                html.H3("Résultats"),
+                                html.Div(
+                                    className="league-filter",
+                                    children=[
+                                        html.Span("Filtrer par ligue:", className="filter-label"),
+                                        html.Button("Toutes", id="filter-all", className="league-btn active", n_clicks=0),
+                                        html.Button("🇫🇷 Ligue 1", id="filter-france", className="league-btn", n_clicks=0),
+                                        html.Button("🇪🇸 LaLiga", id="filter-spain", className="league-btn", n_clicks=0),
+                                        html.Button("🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League", id="filter-england", className="league-btn", n_clicks=0),
+                                        html.Button("🇩🇪 Bundesliga", id="filter-germany", className="league-btn", n_clicks=0),
+                                        html.Button("🇮🇹 Serie A", id="filter-italy", className="league-btn", n_clicks=0),
+                                    ]
+                                )
+                            ]
+                        ),
+                        html.Div(
+                            id="no-match-message",
+                            className="no-match-message",
+                            style={"display": "none"},
+                            children=[
+                                html.Div(
+                                    className="no-match-content",
+                                    children=[
+                                        html.Span("🔍", className="no-match-icon"),
+                                        html.H3("Aucun match trouvé", className="no-match-title"),
+                                        html.P(id="no-match-details", className="no-match-details", children=""),
+                                        html.P(
+                                            "💡 Essayez de sélectionner une autre date ou période.",
+                                            className="no-match-hint"
+                                        )
+                                    ]
+                                )
+                            ]
+                        ),
                         dash_table.DataTable(
                             id="data-table",
                             columns=[],
@@ -444,6 +541,12 @@ def create_layout():
         ),
         
         dcc.Store(id="init-trigger", data={"initialized": False}),
+        dcc.Store(id="league-filter", data="all"),
+        dcc.Interval(
+            id="auto-refresh-interval",
+            interval=30*1000,  # 30 secondes
+            n_intervals=0
+        ),
     ])
 
 
@@ -452,22 +555,26 @@ def create_layout():
     Output("data-table", "columns"),
     Output("data-table", "data"),
     Output("init-trigger", "data"),
+    Output("stat-total", "children"),
+    Output("stat-live", "children"),
+    Output("stat-upcoming", "children"),
+    Output("stat-finished", "children"),
+    Output("no-match-message", "style"),
+    Output("no-match-details", "children"),
     Input("init-trigger", "data"),
     State("dataset-type", "value"),
     prevent_initial_call=False,
 )
 def load_initial_data(init_data, dataset_type):
-    """
-    Charge les données initiales au démarrage de l'application depuis MongoDB.
-    """
+    """Callback initial pour remplir le tableau et le panneau de statut."""
     if init_data and init_data.get("initialized"):
         raise PreventUpdate
     
-    # Initialiser les données si nécessaire
     init_msg = initialize_data()
     
-    # Charger les données par défaut (upcoming) depuis MongoDB
-    df = load_matches_from_db("upcoming", target_date=None)
+    df = load_matches_from_db("upcoming", target_date=today_str)
+    
+    stats = get_today_stats(df)
     
     db_stats = get_db_stats()
     
@@ -484,31 +591,41 @@ def load_initial_data(init_data, dataset_type):
     
     columns, data = prepare_table(df)
     
-    return "\n".join(status_lines), columns, data, {"initialized": True}
+    # Message pour pas de matches
+    no_match_style = {"display": "none"}
+    no_match_details = ""
+    
+    return ("\n".join(status_lines), columns, data, {"initialized": True},
+            stats["total"], stats["live"], stats["upcoming"], stats["finished"],
+            no_match_style, no_match_details)
 
 
 @callback(
     Output("status-text", "children", allow_duplicate=True),
     Output("data-table", "columns", allow_duplicate=True),
     Output("data-table", "data", allow_duplicate=True),
+    Output("stat-total", "children", allow_duplicate=True),
+    Output("stat-live", "children", allow_duplicate=True),
+    Output("stat-upcoming", "children", allow_duplicate=True),
+    Output("stat-finished", "children", allow_duplicate=True),
+    Output("no-match-message", "style", allow_duplicate=True),
+    Output("no-match-details", "children", allow_duplicate=True),
     Input("dataset-type", "value"),
     Input("date-input", "date"),
     Input("month-mode", "value"),
+    Input("league-filter", "data"),
+    Input("auto-refresh-interval", "n_intervals"),
     State("init-trigger", "data"),
     prevent_initial_call=True,
 )
-def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, init_data):
-    """
-    Affiche les données depuis MongoDB.
-    Le scraping est géré automatiquement par le conteneur Scrapy.
-    """
+def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league_filter: str, n_intervals: int, init_data):
+    """Rafraîchit le tableau et les cartes quand les filtres changent ou l'intervalle tick."""
     if not init_data or not init_data.get("initialized"):
         raise PreventUpdate
     
     date_val = date_val or today_str
     use_month_mode = "month" in (month_mode or [])
     
-    # Déterminer les paramètres selon le type et le mode
     if dataset_type == "upcoming":
         filter_params = {"target_date": date_val}
         date_display = f"📅 Date: {date_val}"
@@ -526,8 +643,15 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, init_d
             period_label = date_val
         mode_label = "Matchs terminés"
     
-    # 1. Charger les données directement depuis MongoDB (le scraping est géré par le conteneur scrapy)
     df = load_matches_from_db(dataset_type, **filter_params)
+    
+    # Filtrer par ligue si nécessaire
+    if league_filter and league_filter != "all" and not df.empty:
+        df = df[df.get('league', pd.Series()).str.contains(league_filter, na=False)]
+    
+    # Calculer les stats pour les cards (toujours pour aujourd'hui)
+    today_df = load_matches_from_db("upcoming", target_date=today_str)
+    stats = get_today_stats(today_df)
     
     scraping_msg = ""
     if df.empty:
@@ -535,15 +659,15 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, init_d
     else:
         scraping_msg = f"✅ {len(df)} match(s) chargé(s) pour {period_label}"
     
-    # Statistiques DB
     db_stats = get_db_stats()
     
-    # Message si aucun match trouvé
     if df.empty and not scraping_msg:
         scraping_msg = f"ℹ️ Aucun match programmé pour {period_label}"
     
+    filter_msg = f" (Filtre: {league_filter})" if league_filter != "all" else ""
+    
     status_lines = [
-        f"📊 Affichage: {mode_label}",
+        f"📊 Affichage: {mode_label}{filter_msg}",
         date_display,
         f"📈 Lignes affichées: {len(df)}",
         "",
@@ -555,78 +679,70 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, init_d
         status_lines.insert(1, "")
     
     columns, data = prepare_table(df)
+    
+    # Gérer l'affichage du message "pas de matches"
+    if df.empty:
+        no_match_style = {"display": "flex"}
+        if league_filter and league_filter != "all":
+            no_match_details = f"Aucun match {mode_label.lower()} pour {period_label} avec le filtre '{league_filter}'."
+        else:
+            no_match_details = f"Aucun match {mode_label.lower()} pour {period_label}."
+    else:
+        no_match_style = {"display": "none"}
+        no_match_details = ""
 
-    return "\n".join(status_lines), columns, data
+    return ("\n".join(status_lines), columns, data, 
+            stats["total"], stats["live"], stats["upcoming"], stats["finished"],
+            no_match_style, no_match_details)
 
 
 @callback(
-    Output("status-text", "children", allow_duplicate=True),
-    Output("data-table", "columns", allow_duplicate=True),
-    Output("data-table", "data", allow_duplicate=True),
-    Input("refresh-button", "n_clicks"),
-    State("dataset-type", "value"),
-    State("date-input", "date"),
-    State("month-mode", "value"),
+    Output("league-filter", "data"),
+    Output("filter-all", "className"),
+    Output("filter-france", "className"),
+    Output("filter-spain", "className"),
+    Output("filter-england", "className"),
+    Output("filter-germany", "className"),
+    Output("filter-italy", "className"),
+    Input("filter-all", "n_clicks"),
+    Input("filter-france", "n_clicks"),
+    Input("filter-spain", "n_clicks"),
+    Input("filter-england", "n_clicks"),
+    Input("filter-germany", "n_clicks"),
+    Input("filter-italy", "n_clicks"),
     prevent_initial_call=True,
 )
-def manual_scrape_and_display(n_clicks: int, dataset_type: str, date_val: str, month_mode: list):
-    """
-    Lance un scraping manuel pour la date ou le mois sélectionné, puis recharge les données.
-    """
-    if not n_clicks:
+def update_league_filter(n_all, n_fr, n_es, n_en, n_de, n_it):
+    """Met à jour l'état du filtre de ligue quand un bouton de ligue est cliqué."""
+    ctx = callback_context
+    if not ctx.triggered:
         raise PreventUpdate
     
-    date_val = date_val or today_str
-    use_month_mode = "month" in (month_mode or [])
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
-    # Déterminer la commande de scraping
-    if dataset_type == "upcoming":
-        success, msg = scrape_upcoming_matches(date_val)
-        filter_params = {"target_date": date_val}
-        mode_label = "Matchs à venir"
-        period_label = date_val
-        date_display = f"📅 Date: {date_val}"
-    else:
-        if use_month_mode:
-            month_val = date_val[:7]
-            success, msg = scrape_finished_matches(month=month_val)
-            filter_params = {"month": month_val}
-            period_label = f"le mois {month_val}"
-            date_display = f"📅 Mois: {month_val}"
-        else:
-            success, msg = scrape_finished_matches(target_date=date_val)
-            filter_params = {"target_date": date_val}
-            period_label = date_val
-            date_display = f"📅 Date: {date_val}"
-        mode_label = "Matchs terminés"
+    league_map = {
+        "filter-all": "all",
+        "filter-france": "FRANCE: Ligue 1",
+        "filter-spain": "SPAIN: LaLiga",
+        "filter-england": "ENGLAND: Premier League",
+        "filter-germany": "GERMANY: Bundesliga",
+        "filter-italy": "ITALY: Serie A",
+    }
     
-    # Charger les données mises à jour
-    df = load_matches_from_db(dataset_type, **filter_params)
-    columns, data = prepare_table(df)
+    selected = league_map.get(button_id, "all")
     
-    scrape_prefix = "✅ Scraping manuel" if success else "⚠️ Scraping manuel"
-    scraping_msg = f"{scrape_prefix}: {msg}"
-    data_msg = f"📈 Lignes affichées: {len(df)}"
-    
-    status_lines = [
-        scraping_msg,
-        "",
-        f"📊 Affichage: {mode_label}",
-        date_display,
-        data_msg,
+    classes = [
+        "league-btn active" if selected == "all" else "league-btn",
+        "league-btn active" if selected == "FRANCE: Ligue 1" else "league-btn",
+        "league-btn active" if selected == "SPAIN: LaLiga" else "league-btn",
+        "league-btn active" if selected == "ENGLAND: Premier League" else "league-btn",
+        "league-btn active" if selected == "GERMANY: Bundesliga" else "league-btn",
+        "league-btn active" if selected == "ITALY: Serie A" else "league-btn",
     ]
     
-    db_stats = get_db_stats()
-    if db_stats:
-        status_lines.extend(["", db_stats])
-    
-    if df.empty:
-        status_lines.insert(1, f"ℹ️ Aucun match trouvé pour {period_label}")
-    
-    return "\n".join(status_lines), columns, data
+    return selected, *classes
 
 
-# Layout pour être importé par main.py
 layout = create_layout()
 
 
@@ -638,9 +754,10 @@ layout = create_layout()
     prevent_initial_call=False,
 )
 def enforce_dataset_for_date(date_val: str, current_value: str):
-    """
-    Empêche la sélection 'Matchs à venir' pour les dates passées (matchs déjà terminés).
-    Force le dataset sur 'terminés' si la date est < aujourd'hui.
+    """Restrict dataset type when browsing past dates.
+
+    Past dates can't have upcoming matches, so the dropdown is limited to
+    "finished".
     """
     date_val = date_val or today_str
     try:
@@ -657,9 +774,7 @@ def enforce_dataset_for_date(date_val: str, current_value: str):
     ]
     
     if selected_date < today:
-        # Date dans le passé : uniquement les matchs terminés sont pertinents
         return options_finished, "finished"
     
-    # Date aujourd'hui ou future : on conserve les deux options, en gardant la valeur si valide
     new_value = current_value if current_value in {"upcoming", "finished"} else "upcoming"
     return options_all, new_value
