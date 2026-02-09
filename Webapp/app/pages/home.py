@@ -183,10 +183,11 @@ def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
     def normalize_status(row) -> str:
         """Normalise le statut et gère les cas limites 'cancelled'."""
         status = row.get("status", "")
-        status_code = str(row.get("status_code") or "")
+        status_code = row.get("status_code")
         hs = row.get("home_score")
         as_ = row.get("away_score")
-        if status_code == "3" and (hs is None or pd.isna(hs)) and (as_ is None or pd.isna(as_)):
+        # Match terminé (status_code 100 ou "3") mais sans score = annulé
+        if (status_code == 100 or status_code == "3" or status_code == 3) and (hs is None or pd.isna(hs)) and (as_ is None or pd.isna(as_)):
             return "cancelled"
         return status or "unknown"
     

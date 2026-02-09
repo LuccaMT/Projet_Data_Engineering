@@ -67,19 +67,25 @@ def _match_status(match: Dict) -> tuple[str, str]:
     Returns:
         Tuple (status_label, css_class).
     """
-    status_code = str(match.get("status_code") or "")
+    status_code = match.get("status_code")
     status = (match.get("status") or "").lower()
     now_ts = datetime.datetime.utcnow().timestamp()
     start_ts = match.get("start_timestamp") or 0
 
-    if status_code == "3" or status == "finished":
+    # Vérifier d'abord le statut textuel (plus fiable)
+    if status == "finished":
         return "Terminé", "status-finished"
-    if status_code == "2" or status == "live" or status == "in_progress":
+    if status in ("live", "in_progress"):
         return "En cours", "status-live"
-    if status_code == "1" or status == "not_started":
+    
+    # Fallback sur status_code (100 = finished, 0 = not_started)
+    if status_code == 100:
+        return "Terminé", "status-finished"
+    if status_code == 0 or status == "not_started":
         if start_ts and start_ts <= now_ts:
             return "Démarre", "status-upcoming"
         return "À venir", "status-upcoming"
+    
     return "À confirmer", "status-upcoming"
 
 

@@ -110,6 +110,25 @@ def _date_to_offset(target: date) -> int:
     return (target - date.today()).days
 
 
+def daterange(start_date: date, end_date: date) -> Generator[date, None, None]:
+    """
+    Generate a range of dates from start_date to end_date (inclusive).
+    
+    Args:
+        start_date (date): First date in the range.
+        end_date (date): Last date in the range (inclusive).
+    
+    Yields:
+        date: Each date in the range.
+        
+    Example:
+        >>> list(daterange(date(2024, 1, 1), date(2024, 1, 3)))
+        [date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 3)]
+    """
+    for n in range((end_date - start_date).days + 1):
+        yield start_date + timedelta(days=n)
+
+
 @dataclass
 class Match:
     """
