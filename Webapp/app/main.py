@@ -25,8 +25,9 @@ def is_initialized(
 ) -> bool:
     """Vérifie si l'initialisation du projet est terminée.
 
-    L'accès à l'application (hors page /loading) est autorisé uniquement si l'étape
-    `required_step` est marquée comme `completed` dans `initialization_status`.
+    L'accès à l'application est autorisé si:
+    1. L'étape `required_step` est marquée comme `completed` dans le tracker, OU
+    2. Des données sont déjà présentes dans les collections (fallback intelligent)
 
     Args:
         mongo_uri (str | None): URI MongoDB. Si None, utilise la variable d'env `MONGO_URI`.
@@ -34,7 +35,7 @@ def is_initialized(
         required_step (str): Nom de l'étape à vérifier dans le tracker.
 
     Returns:
-        bool: True si l'initialisation est terminée, False sinon.
+        bool: True si l'initialisation est terminée ou si des données existent, False sinon.
     """
     client = None
     try:
@@ -44,12 +45,30 @@ def is_initialized(
         client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
         db = client[mongo_db]
 
+        # Vérifier d'abord le tracker (méthode principale)
         status = db.initialization_status.find_one({}) or {}
         steps = status.get("steps", {})
         step = steps.get(required_step, {})
-        return step.get("status") == "completed"
+        
+        if step.get("status") == "completed":
+            return True
+        
+        # Fallback intelligent: vérifier si des données existent déjà
+        # Cela évite de bloquer l'utilisateur si le tracker n'est pas à jour
+        upcoming_count = db.matches_upcoming.count_documents({})
+        finished_count = db.matches_finished.count_documents({})
+        standings_count = db.standings.count_documents({})
+        
+        # Si on a au moins 100 matchs et quelques classements, considérer comme initialisé
+        has_sufficient_data = (upcoming_count + finished_count) >= 100 and standings_count >= 1
+        
+        if has_sufficient_data:
+            print(f"[INFO] Fallback: données détectées ({upcoming_count} upcoming, {finished_count} finished, {standings_count} standings)")
+            return True
+        
+        return False
     except Exception as exc:
-        # On reste permissif ici: si MongoDB n'est pas joignable, on bloque l'accès
+        # En cas d'erreur, être permissif et bloquer l'accès par sécurité
         print(f"Erreur is_initialized: {exc}")
         return False
     finally:

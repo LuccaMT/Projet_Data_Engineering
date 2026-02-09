@@ -25,11 +25,10 @@ docker-compose logs -f scrapy
 
 ## 📖 Documentation complète
 
-Voir [MONGODB_GUIDE.md](MONGODB_GUIDE.md) pour :
-- Commandes de scraping manuel
-- Gestion de MongoDB
-- Dépannage
-- Structure des données
+- 🚨 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Guide de dépannage rapide (⭐ À lire en cas de problème)
+- 🔧 **[INITIALIZATION_FIX.md](INITIALIZATION_FIX.md)** - Documentation technique de l'amélioration du système d'initialisation
+- 📋 **[FIX_SUMMARY.md](FIX_SUMMARY.md)** - Récapitulatif de la correction du problème de page loading
+- 📚 **[MONGODB_GUIDE.md](MONGODB_GUIDE.md)** - Commandes de scraping manuel, gestion MongoDB, structure des données
 
 ## 🛠️ Développement
 
@@ -44,6 +43,36 @@ docker-compose restart scrapy
 # Arrêter tout
 docker-compose down
 ```
+
+### 🔧 Scripts utilitaires
+
+```bash
+# Vérifier l'état complet du projet
+docker exec flashscore-scrapy python /app/check_status.py
+
+# Forcer l'initialisation à "completed" (si bloqué sur la page loading)
+docker exec flashscore-scrapy python /app/crawler/force_initialization_complete.py
+```
+
+### ⚠️ Résolution de problèmes
+
+**Problème : La page loading s'affiche en boucle**
+- **Cause** : Le tracker d'initialisation n'est pas à jour
+- **Solution** : Exécuter le script de force completion
+  ```bash
+  docker exec flashscore-scrapy python /app/crawler/force_initialization_complete.py
+  docker-compose restart webapp
+  ```
+
+**Problème : Pas de données affichées**
+- **Vérification** : Lancer le script de diagnostic
+  ```bash
+  docker exec flashscore-scrapy python /app/check_status.py
+  ```
+- **Solution** : Vérifier les logs du scraper
+  ```bash
+  docker-compose logs scrapy
+  ```
 
 ## 📁 Structure du projet
 
