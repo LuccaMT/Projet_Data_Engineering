@@ -293,13 +293,49 @@ class AutoClubIndexer:
 
 
 def start_indexing_in_background():
-    """Lance l'indexation dans un thread séparé"""
+    """Lance l'indexation dans un thread séparé et surveille les triggers"""
     def run_indexer():
         # Attendre que le webapp et les services démarrent
         logger.info("⏳ Attente de 15 secondes avant indexation...")
         time.sleep(15)
+        
+        # Premier lancement au démarrage
         indexer = AutoClubIndexer()
         indexer.run()
+        
+        # Surveiller les triggers pour réindexer si demandé
+        logger.info("👀 Surveillance des triggers d'indexation...")
+        mongo_uri = os.getenv('MONGO_URI', 'mongodb://admin:admin123@mongodb:27017/')
+        client = MongoClient(mongo_uri)
+        db = client["flashscore"]
+        
+        last_trigger_time = 0
+        while True:
+            try:
+                status_doc = db.initialization_status.find_one({})
+                if status_doc and status_doc.get("elasticsearch_trigger"):
+                    trigger_time = status_doc.get("elasticsearch_trigger_time", 0)
+                    
+                    # Nouveau trigger détecté
+                    if trigger_time > last_trigger_time:
+                        logger.info("🔔 Nouveau trigger d'indexation détecté!")
+                        last_trigger_time = trigger_time
+                        
+                        # Supprimer le trigger
+                        db.initialization_status.update_one(
+                            {},
+                            {"$unset": {"elasticsearch_trigger": "", "elasticsearch_trigger_time": ""}}
+                        )
+                        
+                        # Lancer l'indexation
+                        indexer_new = AutoClubIndexer()
+                        indexer_new.run()
+                
+                # Attendre 10 secondes avant de revérifier
+                time.sleep(10)
+            except Exception as e:
+                logger.error(f"Erreur surveillance triggers: {e}")
+                time.sleep(30)
     
     thread = threading.Thread(target=run_indexer, daemon=True)
     thread.start()

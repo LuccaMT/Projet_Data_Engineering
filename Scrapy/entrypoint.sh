@@ -39,7 +39,7 @@ echo "[startup] Scraping initial"
 echo "================================================"
 echo "  -> Classements..."
 python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('classements', 'in_progress', 0, 'Récupération des classements...'); tracker.close()"
-if python /app/crawler/fetch_standings.py 2>&1 | tail -10; then
+if python /app/crawler/fetch_standings.py 2>&1; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('classements', 'completed', 100); tracker.close()"
     echo "  [ok] Classements récupérés"
 else
@@ -47,19 +47,18 @@ else
 fi
 
 echo
-echo "  -> Top 5 - Calendrier complet (liste directe)..."
-python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('top5_leagues', 'in_progress', 30, 'Scraping Top 5 championnats...'); tracker.close()"
-if python -u /app/crawler/fetch_top5_full_season.py 2>&1 | tail -30; then
-    python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('top5_leagues', 'completed', 100); tracker.close()"
-    echo "  [ok] Top 5 - Calendrier complet OK"
-else
-    echo "  [warn] Erreur Top 5 calendrier complet"
-fi
+echo "  -> Top 5 - Calendrier complet (en arrière-plan, ~20 min)..."
+python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('top5_leagues', 'in_progress', 30, 'Scraping Top 5 championnats (background)...'); tracker.close()"
+# Lancer en background pour ne pas bloquer
+(python -u /app/crawler/fetch_top5_full_season.py 2>&1 && \
+    python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('top5_leagues', 'completed', 100); tracker.close()" && \
+    echo "  [ok] Top 5 - Calendrier complet terminé") &
+echo "  [info] Top 5 lancé en arrière-plan (PID $!)" 
 
 echo
 echo "  -> Autres ligues - Page d'accueil (7+ jours)..."
 python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'in_progress', 50, 'Matchs à venir page d accueil...'); tracker.close()"
-if python /app/crawler/fetch_upcoming.py 2>&1 | tail -10; then
+if python /app/crawler/fetch_upcoming.py 2>&1; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'completed', 100); tracker.close()"
     echo "  [ok] Autres ligues OK"
 else
@@ -68,7 +67,7 @@ fi
 
 echo "  -> Matchs terminés (mois courant)..."
 python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('finished_matches', 'in_progress', 30, 'Matchs terminés...'); tracker.close()"
-if python /app/crawler/fetch_finished.py --month $(date +%Y-%m) 2>&1 | tail -5; then
+if python /app/crawler/fetch_finished.py --month $(date +%Y-%m) 2>&1; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('finished_matches', 'completed', 100); tracker.close()"
     echo "  [ok] Matchs terminés OK"
 else
@@ -84,7 +83,7 @@ SEASON_START="${SEASON_YEAR}-07-01"
 TODAY="$(date +%Y-%m-%d)"
 echo "  -> Historique saison (${SEASON_START} -> ${TODAY})..."
 python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('season_history', 'in_progress', 50, 'Historique saison...'); tracker.close()"
-if python /app/crawler/fetch_finished.py --start-date "${SEASON_START}" --end-date "${TODAY}" 2>&1 | tail -5; then
+if python /app/crawler/fetch_finished.py --start-date "${SEASON_START}" --end-date "${TODAY}" 2>&1; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('season_history', 'completed', 100); tracker.close()"
     echo "  [ok] Historique OK"
 else
@@ -93,11 +92,19 @@ fi
 
 echo "  -> Catalogue élargi..."
 python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('smart_catalog', 'in_progress', 70, 'Catalogue élargi...'); tracker.close()"
-if python /app/crawler/fetch_smart_history.py 2>&1 | tail -5; then
+if python /app/crawler/fetch_smart_history.py 2>&1; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('smart_catalog', 'completed', 100); tracker.close()"
     echo "  [ok] Catalogue OK"
 else
     echo "  [warn] Erreur catalogue"
+fi
+
+echo
+echo "  -> Indexation Elasticsearch (trigger)..."
+if python /app/crawler/trigger_elasticsearch.py 2>&1; then
+    echo "  [ok] Elasticsearch indexé"
+else
+    echo "  [warn] Erreur indexation Elasticsearch"
 fi
 
 echo
