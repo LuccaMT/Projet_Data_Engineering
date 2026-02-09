@@ -306,9 +306,11 @@ class MongoDBConnection:
     
     def get_all_leagues(self) -> List[str]:
         """Récupère la liste de toutes les ligues connues (upcoming + finished).
+        
+        Exclut 'Unknown League' de la liste des ligues affichées.
 
         Returns:
-            List[str]: Ligues distinctes triées.
+            List[str]: Ligues distinctes triées (sans Unknown League).
         """
         if self.db is None:
             if not self.connect():
@@ -319,6 +321,10 @@ class MongoDBConnection:
             leagues_finished = self.db['matches_finished'].distinct('league')
             
             all_leagues = list(set(leagues_upcoming + leagues_finished))
+            
+            # Exclure "Unknown League" de la liste
+            all_leagues = [league for league in all_leagues if league != "Unknown League"]
+            
             all_leagues.sort()
             
             return all_leagues

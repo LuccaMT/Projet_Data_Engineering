@@ -57,11 +57,16 @@ else
 fi
 
 echo
-echo "  -> Autres ligues - 7 jours..."
-python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'in_progress', 50, 'Matchs à venir autres ligues...'); tracker.close()"
-if python /app/crawler/fetch_upcoming.py --date $(date +%Y-%m-%d) --days 8 2>&1 | tail -5; then
+echo "  -> Autres ligues - Page d'accueil (7+ jours)..."
+python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'in_progress', 50, 'Matchs à venir page d accueil...'); tracker.close()"
+if python /app/crawler/fetch_upcoming_selenium.py 2>&1 | tail -10; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'completed', 100); tracker.close()"
     echo "  [ok] Autres ligues OK"
+    
+    # Normaliser les noms de ligues après scraping
+    echo "  -> Normalisation des ligues..."
+    python /app/crawler/update_league_names.py > /dev/null 2>&1
+    echo "  [ok] Ligues normalisées"
 else
     echo "  [warn] Erreur autres ligues"
 fi
@@ -124,29 +129,32 @@ echo
 continuous_scraping() {
     local iteration=1
     local standings_counter=0
+    local homepage_counter=0
     
     while true; do
-        local delay=$((1 + RANDOM % 10))
+        local delay=$((5 + RANDOM % 10))
         sleep $delay
 
-        local current_date=$(date +%Y-%m-%d)
-
-        if python /app/crawler/fetch_upcoming.py --date $current_date > /dev/null 2>&1; then
-            echo "[$(date +%H:%M:%S)] #$iteration - OK"
-        else
-            echo "[$(date +%H:%M:%S)] #$iteration - WARN"
+        # Every 120 iterations (~15-20 minutes), scrape homepage for all leagues (7+ days)
+        homepage_counter=$((homepage_counter + 1))
+        if [ $homepage_counter -ge 120 ]; then
+            echo "[$(date +%H:%M:%S)] Scraping page d'accueil (toutes ligues, 7+ jours)..."
+            python /app/crawler/fetch_upcoming_selenium.py > /dev/null 2>&1
+            echo "[$(date +%H:%M:%S)] Normalisation des ligues..."
+            python /app/crawler/update_league_names.py > /dev/null 2>&1
+            homepage_counter=0
         fi
 
-        if [ $((iteration % 60)) -eq 0 ]; then
-            python /app/crawler/fetch_upcoming.py --date $current_date --days 8 > /dev/null 2>&1
-        fi
-
+        # Every 10 iterations, check for finished matches
         if [ $((iteration % 10)) -eq 0 ]; then
-            python /app/crawler/fetch_finished.py --date $current_date > /dev/null 2>&1
+            echo "[$(date +%H:%M:%S)] #$iteration - Vérification matchs terminés..."
+            python /app/crawler/fetch_finished.py --date $(date +%Y-%m-%d) > /dev/null 2>&1
         fi
         
+        # Update standings every ~30 minutes
         standings_counter=$((standings_counter + 1))
         if [ $standings_counter -ge 180 ]; then
+            echo "[$(date +%H:%M:%S)] Mise à jour des classements..."
             python /app/crawler/fetch_standings.py > /dev/null 2>&1
             standings_counter=0
         fi
