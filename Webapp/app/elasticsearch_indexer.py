@@ -65,8 +65,8 @@ class AutoClubIndexer:
     
     def wait_for_services(self):
         """Attend que MongoDB et Elasticsearch soient prêts"""
-        max_retries = 30
-        retry_delay = 2
+        max_retries = 60
+        retry_delay = 3
         
         # Attendre MongoDB
         for i in range(max_retries):
@@ -78,6 +78,8 @@ class AutoClubIndexer:
                 if i == max_retries - 1:
                     logger.error(f"MongoDB non disponible après {max_retries} tentatives")
                     return False
+                if i % 10 == 0:
+                    logger.info(f"Attente MongoDB... ({i+1}/{max_retries})")
                 time.sleep(retry_delay)
         
         # Attendre Elasticsearch
@@ -90,6 +92,8 @@ class AutoClubIndexer:
                 if i == max_retries - 1:
                     logger.error(f"Elasticsearch non disponible après {max_retries} tentatives")
                     return False
+                if i % 10 == 0:
+                    logger.info(f"Attente Elasticsearch... ({i+1}/{max_retries})")
                 time.sleep(retry_delay)
         
         return False
@@ -291,8 +295,9 @@ class AutoClubIndexer:
 def start_indexing_in_background():
     """Lance l'indexation dans un thread séparé"""
     def run_indexer():
-        # Attendre un peu que le webapp démarre
-        time.sleep(5)
+        # Attendre que le webapp et les services démarrent
+        logger.info("⏳ Attente de 15 secondes avant indexation...")
+        time.sleep(15)
         indexer = AutoClubIndexer()
         indexer.run()
     

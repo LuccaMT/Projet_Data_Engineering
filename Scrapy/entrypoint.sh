@@ -59,14 +59,9 @@ fi
 echo
 echo "  -> Autres ligues - Page d'accueil (7+ jours)..."
 python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'in_progress', 50, 'Matchs à venir page d accueil...'); tracker.close()"
-if python /app/crawler/fetch_upcoming_selenium.py 2>&1 | tail -10; then
+if python /app/crawler/fetch_upcoming.py 2>&1 | tail -10; then
     python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('other_leagues_upcoming', 'completed', 100); tracker.close()"
     echo "  [ok] Autres ligues OK"
-    
-    # Normaliser les noms de ligues après scraping
-    echo "  -> Normalisation des ligues..."
-    python /app/crawler/update_league_names.py > /dev/null 2>&1
-    echo "  [ok] Ligues normalisées"
 else
     echo "  [warn] Erreur autres ligues"
 fi
@@ -139,9 +134,7 @@ continuous_scraping() {
         homepage_counter=$((homepage_counter + 1))
         if [ $homepage_counter -ge 120 ]; then
             echo "[$(date +%H:%M:%S)] Scraping page d'accueil (toutes ligues, 7+ jours)..."
-            python /app/crawler/fetch_upcoming_selenium.py > /dev/null 2>&1
-            echo "[$(date +%H:%M:%S)] Normalisation des ligues..."
-            python /app/crawler/update_league_names.py > /dev/null 2>&1
+            python /app/crawler/fetch_upcoming.py > /dev/null 2>&1
             homepage_counter=0
         fi
 

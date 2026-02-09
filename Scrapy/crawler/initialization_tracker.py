@@ -38,7 +38,8 @@ class InitializationTracker:
                 "other_leagues_upcoming": {"status": "pending", "progress": 0},
                 "finished_matches": {"status": "pending", "progress": 0},
                 "season_history": {"status": "pending", "progress": 0},
-                "smart_catalog": {"status": "pending", "progress": 0}
+                "smart_catalog": {"status": "pending", "progress": 0},
+                "elasticsearch_indexing": {"status": "pending", "progress": 0}
             },
             "overall_progress": 0,
             "completed_at": None
