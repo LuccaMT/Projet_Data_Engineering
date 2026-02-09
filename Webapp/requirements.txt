@@ -1,6 +1,9 @@
 dash==3.2.0
+dash-bootstrap-components==1.6.0
+plotly==5.24.1
 pandas==2.3.3
 pymongo==4.6.1
 scrapy==2.13.4
 requests==2.32.5
 parsel==1.10.0
+elasticsearch==8.11.0

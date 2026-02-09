@@ -103,4 +103,44 @@ docker exec flashscore-scrapy python /app/crawler/force_initialization_complete.
 ✅ Filtrage par date/mois  
 ✅ Statistiques en direct  
 ✅ Logos des équipes  
-✅ Interface responsive
+✅ Interface responsive  
+✅ **Recherche de clubs avec Elasticsearch** 🔍 **NOUVEAU !**  
+✅ **Comparaison de clubs avec graphiques** 📊 **NOUVEAU !**  
+✅ **Statistiques détaillées par club** 📈 **NOUVEAU !**
+
+## 🔍 Nouvelle fonctionnalité : Recherche de Clubs
+
+Une nouvelle section complète permet de rechercher, analyser et comparer des clubs de football.
+
+### Fonctionnalités de recherche :
+
+- **Recherche intelligente** : Elasticsearch avec fuzzy matching (supporte les fautes de frappe)
+- **Statistiques complètes** : Victoires, nuls, défaites, buts, taux de victoire, forme récente
+- **Graphiques interactifs** : 
+  - Pie chart des résultats
+  - Bar chart buts marqués/encaissés
+  - Line chart évolution de la forme
+  - Radar chart comparatif
+- **Comparaison** : Comparez 2 clubs côte à côte avec confrontations directes
+
+### Accès rapide :
+
+```bash
+# Déploiement automatique complet (Windows)
+.\deploy_club_search.ps1
+
+# OU manuellement
+docker-compose up -d --build
+docker exec scrapy_flashscore python crawler/club_indexer.py
+
+# Tester l'installation
+docker exec scrapy_flashscore python crawler/test_club_search.py
+```
+
+### Pages disponibles :
+
+- **`/clubs/search`** - Recherche de clubs
+- **`/clubs/detail?name={nom}`** - Détails et statistiques d'un club
+- **`/clubs/compare?club1={nom1}&club2={nom2}`** - Comparaison de clubs
+
+📖 **Documentation complète** : [CLUB_SEARCH_FEATURE.md](CLUB_SEARCH_FEATURE.md)

@@ -15,7 +15,7 @@ from dash.dependencies import Input, Output
 from pymongo import MongoClient
 
 # Local
-from pages import cups, home, league_detail, leagues, loading
+from pages import cups, home, league_detail, leagues, loading, club_search, club_detail, club_compare
 
 
 def is_initialized(
@@ -125,11 +125,26 @@ def display_page(pathname: str):
         return leagues.layout
     if pathname == "/cups":
         return cups.layout
+    if pathname == "/clubs/search":
+        return club_search.layout()
+    if pathname and pathname.startswith("/clubs/detail"):
+        return club_detail.layout()
+    if pathname and pathname.startswith("/clubs/compare"):
+        return club_compare.layout()
     return home.layout
 
 
 def run() -> None:
     """Démarre l'application Dash."""
+    # Lancer l'indexation Elasticsearch en arrière-plan
+    try:
+        from elasticsearch_indexer import start_indexing_in_background
+        print("\n🔍 Lancement de l'indexation Elasticsearch en arrière-plan...")
+        start_indexing_in_background()
+    except Exception as e:
+        print(f"⚠️  Avertissement: Impossible de lancer l'indexation Elasticsearch: {e}")
+        print("   L'application va démarrer mais la recherche de clubs peut ne pas fonctionner.\n")
+    
     app.run(debug=True, host="0.0.0.0", port=8050)
 
 

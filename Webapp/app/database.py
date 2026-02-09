@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 # Third-party
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from elasticsearch import Elasticsearch
 
 
 class MongoDBConnection:
@@ -36,6 +37,10 @@ class MongoDBConnection:
         self.client = None
         self.db = None
         
+        # Connexion Elasticsearch
+        self.es_host = os.getenv('ELASTICSEARCH_HOST', 'http://localhost:9200')
+        self.es_client = None
+        
     def connect(self) -> bool:
         """
         Establish MongoDB connection with availability check.
@@ -54,6 +59,20 @@ class MongoDBConnection:
             )
             self.client.admin.command('ping')
             self.db = self.client[self.mongo_db]
+            
+            # Connexion à Elasticsearch (retry si non connecté)
+            if self.es_client is None:
+                try:
+                    self.es_client = Elasticsearch([self.es_host], request_timeout=5)
+                    if self.es_client.ping():
+                        print("✅ Elasticsearch connecté")
+                    else:
+                        print("⚠️ Elasticsearch ping échoué")
+                        self.es_client = None
+                except Exception as es_error:
+                    print(f"Elasticsearch non disponible: {es_error}")
+                    # MongoDB peut fonctionner sans Elasticsearch
+            
             return True
         except (ConnectionFailure, ServerSelectionTimeoutError) as e:
             print(f"Erreur de connexion MongoDB: {e}")
@@ -73,6 +92,9 @@ class MongoDBConnection:
             self.client.close()
             self.client = None
             self.db = None
+        if self.es_client:
+            self.es_client.close()
+            self.es_client = None
     
     def get_upcoming_matches(self, target_date: Optional[str] = None) -> List[Dict]:
         """
@@ -401,6 +423,207 @@ class MongoDBConnection:
         except Exception as e:
             print(f"Erreur lors de la récupération des classements: {e}")
             return []
+
+    # ========== CLUB SEARCH & STATISTICS ==========
+    
+    def search_clubs(self, query: str, size: int = 10) -> List[Dict]:
+        """Recherche des clubs par nom avec fuzzy matching via Elasticsearch.
+        
+        Args:
+            query (str): Terme de recherche (nom du club).
+            size (int): Nombre maximum de résultats à retourner.
+            
+        Returns:
+            List[Dict]: Liste des clubs correspondants avec leurs statistiques.
+        """
+        if not query or not query.strip():
+            return []
+        
+        if self.es_client is None:
+            # Tenter de se connecter automatiquement si ES n'est pas encore initialisé
+            self.connect()
+        
+        if self.es_client is None:
+            print("Elasticsearch non connecté")
+            return []
+        
+        try:
+            body = {
+                "query": {
+                    "multi_match": {
+                        "query": query,
+                        "fields": ["name^3", "name.suggest"],
+                        "fuzziness": "AUTO"
+                    }
+                },
+                "size": size
+            }
+            
+            results = self.es_client.search(index="clubs", body=body)
+            clubs = []
+            
+            for hit in results['hits']['hits']:
+                club_data = hit['_source']
+                club_data['_score'] = hit['_score']  # Score de pertinence
+                clubs.append(club_data)
+            
+            return clubs
+        except Exception as e:
+            print(f"Erreur lors de la recherche de clubs: {e}")
+            return []
+    
+    def get_club_by_name(self, club_name: str) -> Optional[Dict]:
+        """Récupère les statistiques complètes d'un club par son nom exact.
+        
+        Args:
+            club_name (str): Nom exact du club.
+            
+        Returns:
+            Optional[Dict]: Statistiques du club ou None si non trouvé.
+        """
+        if not club_name:
+            return None
+        
+        if self.es_client is None:
+            # Tenter de se connecter automatiquement si ES n'est pas encore initialisé
+            self.connect()
+        
+        if self.es_client is None:
+            print("Elasticsearch non connecté")
+            return None
+        
+        club_name = club_name.strip()
+        if not club_name:
+            return None
+        
+        try:
+            result = self.es_client.get(index="clubs", id=club_name)
+            return result['_source']
+        except Exception as e:
+            print(f"Club {club_name} non trouvé: {e}")
+            return None
+
+    @staticmethod
+    def _normalize_club_name(name: str) -> str:
+        """Normalise un nom de club pour comparaison souple."""
+        return " ".join(name.strip().split()).casefold()
+
+    def resolve_club(self, club_name: str) -> Optional[Dict]:
+        """Résout un nom de club vers un document indexé (exact ou fuzzy).
+
+        Tente d'abord un match exact, puis fallback sur une recherche fuzzy
+        et retourne le meilleur candidat.
+        """
+        if not club_name or not club_name.strip():
+            return None
+        
+        cleaned_name = " ".join(club_name.strip().split())
+        
+        # 1) Match exact
+        club = self.get_club_by_name(cleaned_name)
+        if club:
+            return club
+        
+        # 2) Fallback fuzzy via Elasticsearch
+        candidates = self.search_clubs(cleaned_name, size=5)
+        if not candidates:
+            return None
+        
+        normalized_input = self._normalize_club_name(cleaned_name)
+        for candidate in candidates:
+            candidate_name = candidate.get("name", "")
+            if candidate_name and self._normalize_club_name(candidate_name) == normalized_input:
+                return candidate
+        
+        # Sinon retourner le meilleur résultat
+        return candidates[0]
+    
+    def get_club_matches_history(self, club_name: str, limit: int = 20) -> List[Dict]:
+        """Récupère l'historique des matchs d'un club depuis MongoDB.
+        
+        Args:
+            club_name (str): Nom du club.
+            limit (int): Nombre maximum de matchs à retourner.
+            
+        Returns:
+            List[Dict]: Liste des matchs (les plus récents en premier).
+        """
+        if not club_name:
+            return []
+        
+        if self.db is None:
+            if not self.connect():
+                return []
+        
+        try:
+            matches = list(
+                self.db.matches_finished.find({
+                    "$or": [
+                        {"home": club_name},
+                        {"away": club_name}
+                    ],
+                    "status_code": {"$in": [100, "100"]},
+                    "home_score": {"$exists": True, "$ne": None},
+                    "away_score": {"$exists": True, "$ne": None}
+                }).sort("first_created", -1).limit(limit)
+            )
+            
+            for match in matches:
+                if '_id' in match:
+                    del match['_id']
+            
+            return matches
+        except Exception as e:
+            print(f"Erreur lors de la récupération de l'historique de {club_name}: {e}")
+            return []
+    
+    def compare_clubs(self, club1_name: str, club2_name: str) -> Optional[Dict]:
+        """Compare deux clubs et retourne leurs statistiques côte à côte.
+        
+        Args:
+            club1_name (str): Nom du premier club.
+            club2_name (str): Nom du second club.
+            
+        Returns:
+            Optional[Dict]: Dictionnaire avec les stats des deux clubs et leur comparaison.
+        """
+        club1 = self.resolve_club(club1_name)
+        club2 = self.resolve_club(club2_name)
+        
+        if not club1 or not club2:
+            return None
+        
+        # Normaliser les noms (utile si fuzzy match)
+        club1_name = club1.get("name", club1_name)
+        club2_name = club2.get("name", club2_name)
+        
+        # Vérifier s'ils ont joué l'un contre l'autre
+        head_to_head = []
+        if self.db is not None:
+            try:
+                h2h_matches = list(
+                    self.db.matches_finished.find({
+                        "$or": [
+                            {"home": club1_name, "away": club2_name},
+                            {"home": club2_name, "away": club1_name}
+                        ],
+                        "status_code": {"$in": [100, "100"]},
+                        "home_score": {"$exists": True, "$ne": None}
+                    }).sort("first_created", -1).limit(10)
+                )
+                
+                for match in h2h_matches:
+                    if '_id' in match:
+                        del match['_id']
+                    head_to_head.append(match)
+            except Exception as e:
+                print(f"Erreur lors de la récupération des confrontations directes: {e}")
+        
+        return {
+            "club1": club1,
+            "club2": club2,
+            "head_to_head": head_to_head
+        }
 
 
 _db_connection = None

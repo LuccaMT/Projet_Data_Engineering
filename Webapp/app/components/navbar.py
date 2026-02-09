@@ -46,6 +46,14 @@ def create_navbar(current_page="home"):
                                 href="/leagues",
                                 className=f"nav-link {'active' if current_page == 'leagues' else ''}",
                             ),
+                            dcc.Link(
+                                [
+                                    html.Span("🔍", className="nav-icon"),
+                                    html.Span("Recherche Clubs", className="nav-text"),
+                                ],
+                                href="/clubs/search",
+                                className=f"nav-link {'active' if current_page == 'clubs' else ''}",
+                            ),
                         ],
                     ),
                 ],
