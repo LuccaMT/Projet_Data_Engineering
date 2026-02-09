@@ -351,6 +351,31 @@ class MongoDBConnection:
             print(f"Erreur lors de la récupération du classement pour {league_name}: {e}")
             return None
 
+    def get_cup_brackets(self, league_name: str) -> Optional[Dict]:
+        """Récupère les brackets d'une coupe.
+
+        Args:
+            league_name (str): Nom exact de la coupe.
+
+        Returns:
+            Optional[Dict]: Document cup_brackets sans `_id`, ou None si absent/erreur.
+        """
+        if not league_name:
+            return None
+
+        if self.db is None:
+            if not self.connect():
+                return None
+
+        try:
+            bracket = self.db.cup_brackets.find_one({"league": league_name})
+            if bracket and "_id" in bracket:
+                del bracket["_id"]
+            return bracket
+        except Exception as e:
+            print(f"Erreur lors de la récupération des brackets pour {league_name}: {e}")
+            return None
+
     def get_all_standings(self) -> List[Dict]:
         """Récupère tous les classements disponibles.
 

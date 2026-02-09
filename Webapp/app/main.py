@@ -80,7 +80,13 @@ def is_initialized(
 app = Dash(
     __name__,
     suppress_callback_exceptions=True,
-    title="Flashscore Football Dashboard"
+    title="Flashscore Football Dashboard",
+    external_stylesheets=[
+        "https://cdn.jsdelivr.net/npm/brackets-viewer@2.3.1/dist/brackets-viewer.min.css"
+    ],
+    external_scripts=[
+        "https://cdn.jsdelivr.net/npm/brackets-viewer@2.3.1/dist/brackets-viewer.min.js"
+    ]
 )
 
 app.layout = html.Div([

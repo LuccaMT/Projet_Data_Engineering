@@ -46,6 +46,44 @@ LEAGUES = {
     "GERMANY: Bundesliga": {
         "calendrier": "https://www.flashscore.fr/football/allemagne/bundesliga/calendrier/",
         "resultats": "https://www.flashscore.fr/football/allemagne/bundesliga/resultats/"
+    },
+    # ===== COUPES EUROPEENNES - CLUBS =====
+    "EUROPE: UEFA Champions League": {
+        "calendrier": "https://www.flashscore.fr/football/europe/champions-league/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/europe/champions-league/resultats/"
+    },
+    "EUROPE: UEFA Europa League": {
+        "calendrier": "https://www.flashscore.fr/football/europe/europa-league/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/europe/europa-league/resultats/"
+    },
+    "EUROPE: UEFA Conference League": {
+        "calendrier": "https://www.flashscore.fr/football/europe/europa-conference-league/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/europe/europa-conference-league/resultats/"
+    },
+    # ===== COUPES NATIONALES =====
+    "FRANCE: Coupe de France": {
+        "calendrier": "https://www.flashscore.fr/football/france/coupe-de-france/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/france/coupe-de-france/resultats/"
+    },
+    "ENGLAND: FA Cup": {
+        "calendrier": "https://www.flashscore.fr/football/angleterre/fa-cup/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/angleterre/fa-cup/resultats/"
+    },
+    "ENGLAND: League Cup": {
+        "calendrier": "https://www.flashscore.fr/football/angleterre/league-cup/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/angleterre/league-cup/resultats/"
+    },
+    "SPAIN: Copa del Rey": {
+        "calendrier": "https://www.flashscore.fr/football/espagne/copa-del-rey/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/espagne/copa-del-rey/resultats/"
+    },
+    "ITALY: Coppa Italia": {
+        "calendrier": "https://www.flashscore.fr/football/italie/coppa-italia/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/italie/coppa-italia/resultats/"
+    },
+    "GERMANY: DFB Pokal": {
+        "calendrier": "https://www.flashscore.fr/football/allemagne/dfb-pokal/calendrier/",
+        "resultats": "https://www.flashscore.fr/football/allemagne/dfb-pokal/resultats/"
     }
 }
 

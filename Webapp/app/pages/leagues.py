@@ -8,6 +8,7 @@ from dash import html, dcc, Input, Output, callback
 from database import get_db_connection
 from components.navbar import create_navbar
 from text_utils import normalize_unicode_label, parse_league_country
+from pages.cups import is_cup
 
 
 TOP_5_LEAGUES = [
@@ -57,7 +58,6 @@ def get_all_leagues() -> List[str]:
 
 # Classement custom pour mettre en avant les ligues les plus prestigieuses/populaires
 PRESTIGE_RULES = [
-    {"keywords": ["champions league"], "countries": None},
     {"keywords": ["premier league"], "countries": {"england"}},
     {"keywords": ["laliga", "la liga"], "countries": {"spain"}},
     {"keywords": ["bundesliga"], "countries": {"germany"}},
@@ -199,27 +199,23 @@ def create_league_card(league: str, emoji: str = "🏆", is_top_5: bool = False)
                     ),
                 ],
             ),
-            html.Button(
-                dcc.Link(
-                    "Voir les matchs & classement →",
-                    href=f"/league?name={urllib.parse.quote_plus(league)}",
-                    style={
-                        "display": "block",
-                        "width": "100%",
-                        "color": "#2563eb",
-                        "textDecoration": "none",
-                    },
-                ),
+            dcc.Link(
+                "Voir les matchs & classement →",
+                href=f"/league?name={urllib.parse.quote_plus(league)}",
                 className="league-button",
                 style={
+                    "display": "block",
                     "width": "100%",
                     "padding": "8px 16px",
                     "backgroundColor": "#eff6ff",
+                    "color": "#2563eb",
                     "border": "1px solid #bfdbfe",
                     "borderRadius": "8px",
                     "cursor": "pointer",
                     "transition": "all 0.2s",
                     "fontWeight": "600",
+                    "textDecoration": "none",
+                    "textAlign": "center",
                 },
             ),
         ],
@@ -440,7 +436,10 @@ def update_leagues_list(search_value, selected_country):
     """Met à jour les options de pays, options de recherche et cartes de ligues affichées."""
     print(f"[DEBUG] Recherche: {search_value}, Pays: {selected_country}")
     
+    # Récupérer toutes les ligues et exclure les coupes
     all_leagues = get_all_leagues()
+    # Filtrer pour exclure les coupes (Champions League, Europa League, etc.)
+    all_leagues = [league for league in all_leagues if not is_cup(league)]
     sorted_leagues = sort_leagues_by_prestige(all_leagues)
     all_countries = get_flashscore_countries()
     

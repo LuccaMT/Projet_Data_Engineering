@@ -2,6 +2,7 @@
 
 from typing import Dict, List, Tuple
 
+import urllib.parse
 from dash import html, dcc, Input, Output, callback
 
 from database import get_db_connection
@@ -28,6 +29,11 @@ CUP_RULES: List[Dict] = [
     {"keywords": ["gold cup"], "category": "continental_nations"},
     {"keywords": ["arab cup"], "category": "continental_nations"},
     {"keywords": ["nations league"], "category": "international"},
+    {"keywords": ["dfb pokal", "dfb-pokal"], "category": "national"},
+    {"keywords": ["fa cup"], "category": "national"},
+    {"keywords": ["coupe de france"], "category": "national"},
+    {"keywords": ["copa del rey"], "category": "national"},
+    {"keywords": ["coppa italia"], "category": "national"},
 ]
 
 CUP_KEYWORDS = set(
@@ -39,6 +45,7 @@ CUP_KEYWORDS = set(
     "copa",
     "coupe",
     "coppa",
+    "pokal",
     "taca",
     "taça",
     "ta�a",
@@ -396,10 +403,12 @@ def update_cups_list(search_value, selected_category):
                                 ),
                             ],
                         ),
-                        html.Button(
+                        dcc.Link(
                             "Voir les matchs →",
+                            href=f"/league?name={urllib.parse.quote_plus(cup['name'])}",
                             className="league-button",
                             style={
+                                "display": "block",
                                 "width": "100%",
                                 "padding": "8px 16px",
                                 "backgroundColor": "#ecfdf3",
@@ -410,6 +419,8 @@ def update_cups_list(search_value, selected_category):
                                 "fontWeight": "700",
                                 "cursor": "pointer",
                                 "transition": "all 0.2s ease",
+                                "textDecoration": "none",
+                                "textAlign": "center",
                             },
                         ),
                     ],

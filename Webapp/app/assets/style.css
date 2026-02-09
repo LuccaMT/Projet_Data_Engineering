@@ -2383,3 +2383,52 @@ html {
         font-size: 24px;
     }
 }
+
+/* ============================================
+   BRACKETS VIEWER INTEGRATION
+   ============================================ */
+.brackets-viewer-container {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    overflow-x: auto;
+}
+
+.brackets-viewer {
+    margin-top: 16px;
+    min-height: 400px;
+}
+
+/* Personnalisation des couleurs brackets-viewer */
+.brackets-viewer .participant {
+    background: white;
+    border: 2px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.brackets-viewer .participant:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+}
+
+.brackets-viewer .participant.winner {
+    background: linear-gradient(90deg, #dcfce7 0%, #bbf7d0 100%);
+    border-color: #86efac;
+}
+
+.brackets-viewer .round-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e40af;
+    text-align: center;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .brackets-viewer {
+        font-size: 11px;
+    }
+}
