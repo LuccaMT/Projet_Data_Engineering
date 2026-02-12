@@ -237,25 +237,52 @@ def display_comparison(search, n_clicks, club1_input, club2_input):
     )
     
     # 3. Radar chart comparatif (taux de victoire, buts marqués, défense)
-    categories = ['Taux de victoire (%)', 'Buts marqués', 'Défense (buts encaissés inversé)', 'Différence de buts']
+    categories = ['Taux de victoire', 'Attaque', 'Défense', 'Efficacité']
     
-    # Normaliser les données pour le radar
-    max_goals = max(club1_data['goals_for'], club2_data['goals_for'], 1)
-    max_against = max(club1_data['goals_against'], club2_data['goals_against'], 1)
-    max_diff = max(abs(club1_data['goal_difference']), abs(club2_data['goal_difference']), 1)
+    # Normaliser les données pour le radar (échelle 0-100 pour chaque métrique)
+    # 1. Taux de victoire: déjà en pourcentage
+    # 2. Attaque: buts par match (normalisé sur 0-100, max = 4 buts/match = 100%)
+    # 3. Défense: inverse des buts encaissés par match (normalisé sur 0-100, 0 buts encaissés = 100%)
+    # 4. Efficacité: différence de buts par match (normalisé sur 0-100, +3 = 100%, -3 = 0%)
+    
+    # Calcul des moyennes par match
+    club1_matches = max(club1_data['total_matches'], 1)
+    club2_matches = max(club2_data['total_matches'], 1)
+    
+    club1_goals_per_match = club1_data['goals_for'] / club1_matches
+    club2_goals_per_match = club2_data['goals_for'] / club2_matches
+    
+    club1_against_per_match = club1_data['goals_against'] / club1_matches
+    club2_against_per_match = club2_data['goals_against'] / club2_matches
+    
+    club1_diff_per_match = club1_data['goal_difference'] / club1_matches
+    club2_diff_per_match = club2_data['goal_difference'] / club2_matches
+    
+    # Normalisation intelligente
+    # Attaque: 4 buts/match = 100%, 0 = 0%
+    club1_attack_score = min((club1_goals_per_match / 4) * 100, 100)
+    club2_attack_score = min((club2_goals_per_match / 4) * 100, 100)
+    
+    # Défense: 0 buts encaissés/match = 100%, 4 buts = 0%
+    club1_defense_score = max(100 - (club1_against_per_match / 4) * 100, 0)
+    club2_defense_score = max(100 - (club2_against_per_match / 4) * 100, 0)
+    
+    # Efficacité: +3 buts de diff/match = 100%, 0 = 50%, -3 = 0%
+    club1_efficiency_score = min(max(((club1_diff_per_match + 3) / 6) * 100, 0), 100)
+    club2_efficiency_score = min(max(((club2_diff_per_match + 3) / 6) * 100, 0), 100)
     
     club1_radar = [
         club1_data['win_rate'],
-        (club1_data['goals_for'] / max_goals) * 100,
-        ((max_against - club1_data['goals_against']) / max_against) * 100,
-        ((club1_data['goal_difference'] + max_diff) / (2 * max_diff)) * 100
+        club1_attack_score,
+        club1_defense_score,
+        club1_efficiency_score
     ]
     
     club2_radar = [
         club2_data['win_rate'],
-        (club2_data['goals_for'] / max_goals) * 100,
-        ((max_against - club2_data['goals_against']) / max_against) * 100,
-        ((club2_data['goal_difference'] + max_diff) / (2 * max_diff)) * 100
+        club2_attack_score,
+        club2_defense_score,
+        club2_efficiency_score
     ]
     
     radar_chart = go.Figure()
@@ -414,42 +441,75 @@ def create_modern_h2h_row(match, club1):
     away_score = match.get('away_score')
     league = match.get('league', 'N/A')
     
-    # Déterminer le gagnant
+    # Déterminer le gagnant et les styles
     if home_score > away_score:
         winner = home
-        form_class = "win" if winner == club1 else "loss"
-        form_letter = "V" if winner == club1 else "D"
+        home_style = {'fontWeight': '700', 'color': '#059669', 'fontSize': '1rem'}  # Gagnant en vert foncé et gras
+        away_style = {'fontWeight': '500', 'color': '#94a3b8', 'fontSize': '0.9rem'}  # Perdant en gris
+        score_home_style = {'background': '#d1fae5', 'color': '#059669', 'fontWeight': '700'}  # Score gagnant
+        score_away_style = {'background': '#f1f5f9', 'color': '#94a3b8', 'fontWeight': '500'}  # Score perdant
     elif away_score > home_score:
         winner = away
-        form_class = "win" if winner == club1 else "loss"
-        form_letter = "V" if winner == club1 else "D"
+        home_style = {'fontWeight': '500', 'color': '#94a3b8', 'fontSize': '0.9rem'}  # Perdant en gris
+        away_style = {'fontWeight': '700', 'color': '#059669', 'fontSize': '1rem'}  # Gagnant en vert foncé et gras
+        score_home_style = {'background': '#f1f5f9', 'color': '#94a3b8', 'fontWeight': '500'}  # Score perdant
+        score_away_style = {'background': '#d1fae5', 'color': '#059669', 'fontWeight': '700'}  # Score gagnant
     else:
         winner = None
-        form_class = "draw"
-        form_letter = "N"
+        home_style = {'fontWeight': '600', 'color': '#0f172a', 'fontSize': '0.95rem'}  # Nul - style normal
+        away_style = {'fontWeight': '600', 'color': '#0f172a', 'fontSize': '0.95rem'}  # Nul - style normal
+        score_home_style = {'background': '#fef3c7', 'color': '#d97706', 'fontWeight': '600'}  # Nul - jaune
+        score_away_style = {'background': '#fef3c7', 'color': '#d97706', 'fontWeight': '600'}  # Nul - jaune
+    
+    # Ajouter un badge de résultat pour club1
+    if winner == club1:
+        result_badge = html.Span("✓ Victoire", className="form-indicator win",
+                                 style={'padding': '0.4rem 0.8rem', 'fontSize': '0.8rem', 'width': 'auto', 'height': 'auto', 'flexShrink': '0'})
+    elif winner and winner != club1:
+        result_badge = html.Span("✗ Défaite", className="form-indicator loss",
+                                 style={'padding': '0.4rem 0.8rem', 'fontSize': '0.8rem', 'width': 'auto', 'height': 'auto', 'flexShrink': '0'})
+    else:
+        result_badge = html.Span("= Nul", className="form-indicator draw",
+                                 style={'padding': '0.4rem 0.8rem', 'fontSize': '0.8rem', 'width': 'auto', 'height': 'auto', 'flexShrink': '0'})
     
     return html.Div([
-        html.Span(form_letter, className=f"form-indicator {form_class}",
-                  style={'width': '36px', 'height': '36px', 'fontSize': '0.85rem', 'flexShrink': '0'}),
+        result_badge,
         html.Span(home, style={
-            'fontWeight': '600', 'flex': '1', 'color': '#0f172a', 'fontSize': '0.95rem',
-            'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap', 'minWidth': '0'
+            **home_style,
+            'flex': '1',
+            'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap', 'minWidth': '0',
+            'textAlign': 'left'
         }),
         html.Div([
-            html.Span(str(home_score), className="score-bubble"),
-            html.Span("–", style={'margin': '0 0.3rem', 'color': '#94a3b8', 'fontWeight': '600'}),
-            html.Span(str(away_score), className="score-bubble")
+            html.Span(str(home_score), className="score-bubble", style={
+                **score_home_style,
+                'padding': '0.3rem 0.7rem',
+                'borderRadius': '6px',
+                'minWidth': '32px',
+                'textAlign': 'center'
+            }),
+            html.Span("–", style={'margin': '0 0.5rem', 'color': '#cbd5e1', 'fontWeight': '600', 'fontSize': '1.2rem'}),
+            html.Span(str(away_score), className="score-bubble", style={
+                **score_away_style,
+                'padding': '0.3rem 0.7rem',
+                'borderRadius': '6px',
+                'minWidth': '32px',
+                'textAlign': 'center'
+            })
         ], style={'display': 'flex', 'alignItems': 'center', 'flexShrink': '0'}),
         html.Span(away, style={
-            'fontWeight': '600', 'flex': '1', 'textAlign': 'right', 'color': '#0f172a', 'fontSize': '0.95rem',
+            **away_style,
+            'flex': '1',
+            'textAlign': 'right',
             'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap', 'minWidth': '0'
         }),
         html.Span(
             league,
             style={
                 'color': '#64748b', 'fontSize': '0.75rem', 'flexShrink': '0',
-                'padding': '0.2rem 0.6rem', 'background': '#f1f5f9',
-                'borderRadius': '9999px', 'whiteSpace': 'nowrap', 'fontWeight': '500'
+                'padding': '0.3rem 0.7rem', 'background': '#f8fafc',
+                'borderRadius': '9999px', 'whiteSpace': 'nowrap', 'fontWeight': '500',
+                'border': '1px solid #e2e8f0'
             }
         )
     ], className="detail-match-row")

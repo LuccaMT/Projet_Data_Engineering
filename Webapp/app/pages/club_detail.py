@@ -164,56 +164,146 @@ def display_club_detail(search):
         bargap=0.35
     )
     
-    # 3. Line chart forme récente (derniers 20 matchs)
-    form_data = []
-    form_labels = []
+    # 3. Line chart forme récente (derniers 20 matchs) + calcul forme séparée (championnat vs coupes)
+    form_data_all = []
+    form_labels_all = []
+    
+    # Séparer les matchs par type
+    form_data_league = []  # Championnat
+    form_labels_league = []
+    recent_form_league = []
+    
+    form_data_cups = []  # Coupes
+    form_labels_cups = []
+    recent_form_cups = []
+    
+    # Mots-clés pour identifier les championnats vs coupes
+    league_keywords = ['Premier League', 'LaLiga', 'Serie A', 'Bundesliga', 'Ligue 1']
+    cup_keywords = ['Cup', 'Coupe', 'Copa', 'Coppa', 'Pokal', 'Champions League', 'Europa League', 'Conference League']
+    
     for match in matches_history[::-1]:  # Du plus ancien au plus récent
         home = match.get('home')
         away = match.get('away')
         home_score = match.get('home_score')
         away_score = match.get('away_score')
+        league = match.get('league', '')
+        
+        # Déterminer si c'est un championnat ou une coupe
+        is_league_match = any(keyword in league for keyword in league_keywords)
+        is_cup_match = any(keyword in league for keyword in cup_keywords)
         
         if home == club_name:
             if home_score > away_score:
                 result = 3  # Victoire
+                result_letter = 'W'
                 opponent = away
             elif home_score == away_score:
                 result = 1  # Nul
+                result_letter = 'D'
                 opponent = away
             else:
                 result = 0  # Défaite
+                result_letter = 'L'
                 opponent = away
         else:
             if away_score > home_score:
                 result = 3  # Victoire
+                result_letter = 'W'
                 opponent = home
             elif away_score == home_score:
                 result = 1  # Nul
+                result_letter = 'D'
                 opponent = home
             else:
                 result = 0  # Défaite
+                result_letter = 'L'
                 opponent = home
         
-        form_data.append(result)
-        form_labels.append(f"vs {opponent}")
+        # Ajouter aux données globales
+        form_data_all.append(result)
+        form_labels_all.append(f"vs {opponent}")
+        
+        # Ajouter aux données spécifiques
+        if is_league_match:
+            form_data_league.append(result)
+            form_labels_league.append(f"vs {opponent}")
+            recent_form_league.append(result_letter)
+        elif is_cup_match:
+            form_data_cups.append(result)
+            form_labels_cups.append(f"vs {opponent}")
+            recent_form_cups.append(result_letter)
+    
+    # Fonction helper pour calculer les métriques
+    def calculate_form_metrics(form_points, form_results, max_matches=5):
+        """Calcule les métriques de forme pour un ensemble de matchs."""
+        last_n_form = form_results[-max_matches:] if len(form_results) >= max_matches else form_results
+        last_n_points = form_points[-max_matches:] if len(form_points) >= max_matches else form_points
+        
+        if last_n_points:
+            avg_points = sum(last_n_points) / len(last_n_points)
+            max_possible = len(last_n_points) * 3
+            percentage = (sum(last_n_points) / max_possible * 100) if max_possible > 0 else 0
+            
+            # Déterminer l'état de forme
+            if percentage >= 80:
+                status = "Excellente"
+                emoji = "🔥"
+                color = "#10b981"
+            elif percentage >= 60:
+                status = "Bonne"
+                emoji = "✅"
+                color = "#059669"
+            elif percentage >= 40:
+                status = "Moyenne"
+                emoji = "➖"
+                color = "#f59e0b"
+            elif percentage >= 20:
+                status = "Difficile"
+                emoji = "⚠️"
+                color = "#ef4444"
+            else:
+                status = "Critique"
+                emoji = "🚨"
+                color = "#dc2626"
+        else:
+            avg_points = 0
+            percentage = 0
+            status = "N/A"
+            emoji = "❓"
+            color = "#94a3b8"
+            last_n_form = []
+        
+        return {
+            'form': last_n_form,
+            'points': last_n_points,
+            'avg': avg_points,
+            'percentage': percentage,
+            'status': status,
+            'emoji': emoji,
+            'color': color
+        }
+    
+    # Calculer les métriques pour championnat et coupes
+    league_metrics = calculate_form_metrics(form_data_league, recent_form_league, 5)
+    cups_metrics = calculate_form_metrics(form_data_cups, recent_form_cups, 5)
     
     # Couleurs par résultat pour les marqueurs
-    marker_colors = ['#10b981' if v == 3 else '#94a3b8' if v == 1 else '#ef4444' for v in form_data]
+    marker_colors = ['#10b981' if v == 3 else '#94a3b8' if v == 1 else '#ef4444' for v in form_data_all]
     
     form_line = go.Figure()
     form_line.add_trace(go.Scatter(
-        x=list(range(len(form_data))),
-        y=form_data,
+        x=list(range(len(form_data_all))),
+        y=form_data_all,
         mode='lines+markers',
         line=dict(color='#2563eb', width=3, shape='spline'),
         marker=dict(size=12, color=marker_colors, line=dict(width=2, color='white')),
-        text=form_labels,
+        text=form_labels_all,
         hovertemplate='<b>%{text}</b><br>Points: %{y}<extra></extra>',
         fill='tozeroy',
         fillcolor='rgba(37, 99, 235, 0.06)'
     ))
     form_line.update_layout(
-        title=dict(text='Courbe de forme', font=dict(size=16, family='Inter', color='#0f172a')),
+        title=dict(text='Courbe de forme (20 derniers matchs)', font=dict(size=16, family='Inter', color='#0f172a')),
         xaxis=dict(title='Matchs', showgrid=False),
         yaxis=dict(
             title='Résultat',
@@ -273,7 +363,7 @@ def display_club_detail(search):
             create_detail_stat_card("📈", f"{goal_diff:+d}", "Différence de buts", '#10b981' if goal_diff >= 0 else '#ef4444'),
         ], className="stats-grid", style={'gap': '1rem', 'margin': '2rem 0'}),
         
-        # Bilan détaillé avec forme récente
+        # Bilan détaillé avec forme récente séparée (Championnat vs Coupes)
         dbc.Row([
             dbc.Col([
                 html.Div([
@@ -293,23 +383,116 @@ def display_club_detail(search):
                         ], className="stat-item", style={'background': '#fef2f2', 'border': '1px solid #fecaca'})
                     ], className="stats-grid", style={'gridTemplateColumns': '1fr 1fr 1fr'})
                 ], className="modern-chart-container", style={'height': '100%'})
-            ], md=7),
+            ], md=12)
+        ], className="mb-4"),
+        
+        # Forme récente séparée : Championnat vs Coupes (même ligne, responsive)
+        dbc.Row([
             dbc.Col([
                 html.Div([
-                    html.H3("🔥 Forme récente", className="chart-title"),
+                    html.H3("🏆 Forme Championnat", className="chart-title", style={'fontSize': '1.1rem'}),
+                    # Indicateurs de résultats
                     html.Div([
                         html.Span(
                             result,
                             className=f"form-indicator {'win' if result == 'W' else 'draw' if result == 'D' else 'loss'}",
                             title=f"{'Victoire' if result == 'W' else 'Nul' if result == 'D' else 'Défaite'}"
-                        ) for result in recent_form
-                    ] if recent_form else [html.P("Pas de données disponibles", className="text-muted")],
+                        ) for result in league_metrics['form']
+                    ] if league_metrics['form'] else [html.P("Aucun match", className="text-muted", style={'fontSize': '0.9rem', 'textAlign': 'center', 'margin': '1rem 0'})],
                         className="form-indicators",
-                        style={'justifyContent': 'center', 'padding': '2.5rem 1rem', 'gap': '0.5rem'}
-                    )
+                        style={'justifyContent': 'center', 'padding': '0.8rem 0.5rem', 'gap': '0.4rem', 'marginBottom': '1rem'}
+                    ),
+                    # Métriques de forme
+                    html.Div([
+                        html.Div([
+                            html.Div(league_metrics['emoji'], style={'fontSize': '2rem', 'marginBottom': '0.4rem'}),
+                            html.Div(league_metrics['status'], style={
+                                'fontSize': '1.2rem',
+                                'fontWeight': '700',
+                                'color': league_metrics['color'],
+                                'marginBottom': '0.2rem'
+                            }),
+                            html.Div(f"{league_metrics['percentage']:.0f}% efficacité", style={
+                                'fontSize': '0.85rem',
+                                'color': '#64748b',
+                                'fontWeight': '500'
+                            })
+                        ], style={'textAlign': 'center'}),
+                        html.Div([
+                            html.Div([
+                                html.Span(f"{league_metrics['avg']:.1f}", style={
+                                    'fontSize': '1.6rem',
+                                    'fontWeight': '700',
+                                    'color': '#2563eb'
+                                }),
+                                html.Span(" / 3", style={
+                                    'fontSize': '0.9rem',
+                                    'color': '#94a3b8',
+                                    'fontWeight': '500'
+                                })
+                            ], style={'marginBottom': '0.2rem'}),
+                            html.Div("Points moyens", style={
+                                'fontSize': '0.8rem',
+                                'color': '#64748b',
+                                'fontWeight': '500'
+                            })
+                        ], style={'textAlign': 'center', 'marginTop': '0.8rem'})
+                    ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'padding': '0.5rem 0'})
                 ], className="modern-chart-container", style={'height': '100%', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'center'})
-            ], md=5)
-        ], className="mb-4"),
+            ], width=12, md=6, className="mb-3", style={'flex': '1 1 420px', 'maxWidth': '100%', 'padding': '0'}),
+            dbc.Col([
+                html.Div([
+                    html.H3("🏅 Forme Coupes", className="chart-title", style={'fontSize': '1.1rem'}),
+                    # Indicateurs de résultats
+                    html.Div([
+                        html.Span(
+                            result,
+                            className=f"form-indicator {'win' if result == 'W' else 'draw' if result == 'D' else 'loss'}",
+                            title=f"{'Victoire' if result == 'W' else 'Nul' if result == 'D' else 'Défaite'}"
+                        ) for result in cups_metrics['form']
+                    ] if cups_metrics['form'] else [html.P("Aucun match", className="text-muted", style={'fontSize': '0.9rem', 'textAlign': 'center', 'margin': '1rem 0'})],
+                        className="form-indicators",
+                        style={'justifyContent': 'center', 'padding': '0.8rem 0.5rem', 'gap': '0.4rem', 'marginBottom': '1rem'}
+                    ),
+                    # Métriques de forme
+                    html.Div([
+                        html.Div([
+                            html.Div(cups_metrics['emoji'], style={'fontSize': '2rem', 'marginBottom': '0.4rem'}),
+                            html.Div(cups_metrics['status'], style={
+                                'fontSize': '1.2rem',
+                                'fontWeight': '700',
+                                'color': cups_metrics['color'],
+                                'marginBottom': '0.2rem'
+                            }),
+                            html.Div(f"{cups_metrics['percentage']:.0f}% efficacité", style={
+                                'fontSize': '0.85rem',
+                                'color': '#64748b',
+                                'fontWeight': '500'
+                            })
+                        ], style={'textAlign': 'center'}),
+                        html.Div([
+                            html.Div([
+                                html.Span(f"{cups_metrics['avg']:.1f}", style={
+                                    'fontSize': '1.6rem',
+                                    'fontWeight': '700',
+                                    'color': '#7c3aed'
+                                }),
+                                html.Span(" / 3", style={
+                                    'fontSize': '0.9rem',
+                                    'color': '#94a3b8',
+                                    'fontWeight': '500'
+                                })
+                            ], style={'marginBottom': '0.2rem'}),
+                            html.Div("Points moyens", style={
+                                'fontSize': '0.8rem',
+                                'color': '#64748b',
+                                'fontWeight': '500'
+                            })
+                        ], style={'textAlign': 'center', 'marginTop': '0.8rem'})
+                    ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'padding': '0.5rem 0'})
+                ], className="modern-chart-container", style={'height': '100%', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'center'})
+            ], width=12, md=6, className="mb-3", style={'flex': '1 1 420px', 'maxWidth': '100%', 'padding': '0'})
+        ], className="mb-4", style={'display': 'flex', 'flexWrap': 'wrap', 'gap': '1rem', 'margin': '0'}),
         
         # Graphiques interactifs
         dbc.Row([
@@ -317,17 +500,20 @@ def display_club_detail(search):
                 html.Div([
                     dcc.Graph(figure=results_pie, config={'displayModeBar': False, 'responsive': True})
                 ], className="modern-chart-container")
-            ], xs=12, md=6, lg=4, className="mb-3"),
+            ], width=12, md=6, className="mb-3", style={'flex': '1 1 520px', 'maxWidth': '100%', 'padding': '0'}),
             dbc.Col([
                 html.Div([
                     dcc.Graph(figure=goals_bar, config={'displayModeBar': False, 'responsive': True})
                 ], className="modern-chart-container")
-            ], xs=12, md=6, lg=4, className="mb-3"),
+            ], width=12, md=6, className="mb-3", style={'flex': '1 1 520px', 'maxWidth': '100%', 'padding': '0'})
+        ], className="mb-3", style={'display': 'flex', 'flexWrap': 'wrap', 'gap': '1rem', 'margin': '0'}),
+        
+        dbc.Row([
             dbc.Col([
                 html.Div([
                     dcc.Graph(figure=form_line, config={'displayModeBar': False, 'responsive': True})
                 ], className="modern-chart-container")
-            ], xs=12, md=12, lg=4, className="mb-3")
+            ], width=12, className="mb-3")
         ], className="mb-4"),
         
         # Historique des matchs moderne
