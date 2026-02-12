@@ -142,6 +142,16 @@ class AutoClubIndexer:
         try:
             self.update_status("in_progress", 10, "Récupération des matchs...")
             
+            # Calculer la date de début de la saison actuelle (1er août)
+            from datetime import datetime
+            current_date = datetime.now()
+            if current_date.month >= 8:
+                season_start_year = current_date.year
+            else:
+                season_start_year = current_date.year - 1
+            
+            season_start_timestamp = int(datetime(season_start_year, 8, 1).timestamp())
+            
             clubs = defaultdict(lambda: {
                 'name': '',
                 'logo': '',
@@ -155,11 +165,12 @@ class AutoClubIndexer:
                 'matches': []
             })
             
-            # Récupérer tous les matchs terminés
+            # Récupérer uniquement les matchs de la saison en cours
             matches = list(self.db.matches_finished.find({
                 "status_code": {"$in": [100, "100"]},
                 "home_score": {"$exists": True, "$ne": None},
-                "away_score": {"$exists": True, "$ne": None}
+                "away_score": {"$exists": True, "$ne": None},
+                "start_timestamp": {"$gte": season_start_timestamp}
             }))
             
             total_matches = len(matches)

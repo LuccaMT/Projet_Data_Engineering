@@ -565,7 +565,7 @@ class MongoDBConnection:
                     "status_code": {"$in": [100, "100"]},
                     "home_score": {"$exists": True, "$ne": None},
                     "away_score": {"$exists": True, "$ne": None}
-                }).sort("first_created", -1).limit(limit)
+                }).sort("start_timestamp", -1).limit(limit)
             )
             
             for match in matches:
