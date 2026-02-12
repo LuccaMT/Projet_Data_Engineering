@@ -15,7 +15,7 @@ from dash.dependencies import Input, Output
 from pymongo import MongoClient
 
 # Local
-from pages import cups, home, league_detail, leagues, loading, club_search, club_detail, club_compare
+from pages import cups, home, live, league_detail, leagues, loading, club_search, club_detail, club_compare
 
 
 def is_initialized(
@@ -119,6 +119,8 @@ def display_page(pathname: str):
             return dcc.Location(pathname="/", id="redirect-home", refresh=True)
         return loading.layout()
 
+    if pathname == "/live":
+        return live.layout
     if pathname == "/league":
         return league_detail.layout
     if pathname == "/leagues":

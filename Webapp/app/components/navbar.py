@@ -32,11 +32,11 @@ def create_navbar(current_page="home"):
                             ),
                             dcc.Link(
                                 [
-                                    html.Span("🏆", className="nav-icon"),
-                                    html.Span("Coupes", className="nav-text"),
+                                    html.Span("🔴", className="nav-icon"),
+                                    html.Span("En Direct", className="nav-text"),
                                 ],
-                                href="/cups",
-                                className=f"nav-link {'active' if current_page == 'cups' else ''}",
+                                href="/live",
+                                className=f"nav-link {'active' if current_page == 'live' else ''}",
                             ),
                             dcc.Link(
                                 [
@@ -45,6 +45,14 @@ def create_navbar(current_page="home"):
                                 ],
                                 href="/leagues",
                                 className=f"nav-link {'active' if current_page == 'leagues' else ''}",
+                            ),
+                            dcc.Link(
+                                [
+                                    html.Span("🏆", className="nav-icon"),
+                                    html.Span("Coupes", className="nav-text"),
+                                ],
+                                href="/cups",
+                                className=f"nav-link {'active' if current_page == 'cups' else ''}",
                             ),
                             dcc.Link(
                                 [
