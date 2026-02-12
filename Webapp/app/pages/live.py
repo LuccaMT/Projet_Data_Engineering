@@ -2,6 +2,8 @@
 
 import datetime
 import os
+import logging
+import re
 
 import pandas as pd
 from dash import dcc, html, dash_table, Input, Output, State, callback, callback_context
@@ -9,6 +11,9 @@ from dash.exceptions import PreventUpdate
 
 from database import get_db_connection
 from components.navbar import create_navbar
+
+# Configuration du logging
+logger = logging.getLogger(__name__)
 
 
 # Vérifier si on est en mode DEV
@@ -28,6 +33,49 @@ else:
 
 MIN_DATE = season_start
 MAX_DATE = season_end
+
+
+def apply_league_filter(df: pd.DataFrame, league_filter: str) -> pd.DataFrame:
+    """Apply a robust league filter on the DataFrame.
+
+    Uses case-insensitive, non-regex matching to avoid issues with special
+    characters and league name variants.
+    """
+    if df.empty or not league_filter or league_filter == "all":
+        return df
+
+    league_series = df.get("league")
+    if league_series is None:
+        # No league column: return empty result for explicit filter.
+        return df.iloc[0:0]
+
+    normalized = league_series.fillna("").astype(str).str.casefold()
+
+    # Canonical leagues linked to the quick buttons.
+    canonical_map = {
+        "FRANCE: Ligue 1": "france: ligue 1",
+        "SPAIN: LaLiga": "spain: laliga",
+        "ENGLAND: Premier League": "england: premier league",
+        "GERMANY: Bundesliga": "germany: bundesliga",
+        "ITALY: Serie A": "italy: serie a",
+    }
+
+    target = canonical_map.get(league_filter)
+    if target:
+        # Strict mode first: only the selected championship.
+        exact_mask = normalized == target
+        if exact_mask.any():
+            return df[exact_mask]
+
+        # Fallback for minor formatting differences in source data.
+        tokens = [t for t in re.split(r"[:\s-]+", target) if t]
+        mask = pd.Series(True, index=df.index)
+        for token in tokens:
+            mask &= normalized.str.contains(token, regex=False)
+        return df[mask]
+
+    # Generic fallback for unknown custom filters.
+    return df[normalized.str.contains(str(league_filter).casefold(), regex=False)]
 
 
 def load_matches_from_db(dataset_type: str, **kwargs) -> pd.DataFrame:
@@ -144,25 +192,49 @@ def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             return ts
 
     def fmt_score(row) -> str:
-        """Formate le score comme 'X - Y' ou 'N/A' si manquant."""
+        """Formate le score comme 'X - Y' ou un message approprié si manquant."""
         hs = row.get("home_score")
         as_ = row.get("away_score")
+        status = row.get("status", "")
+        status_code = row.get("status_code")
         
-        if hs is None or as_ is None or pd.isna(hs) or pd.isna(as_):
-            return "N/A"
+        # Debug: log pour les premiers matchs
+        home = row.get("home", "")
+        if home in ["Lyon", "Aston Villa", "Manchester Utd"]:
+            logger.info(f"🔍 DEBUG fmt_score: {home} - hs={hs} (type={type(hs)}), as_={as_} (type={type(as_)}), status={status}")
         
-        try:
-            hs_str = str(hs).strip()
-            as_str = str(as_).strip()
-            
-            if hs_str == "-" or as_str == "-" or hs_str == "" or as_str == "":
-                return "N/A"
-            
-            hs_int = int(hs_str)
-            as_int = int(as_str)
-            return f"{hs_int} - {as_int}"
-        except (ValueError, TypeError):
-            return "N/A"
+        def coerce_score(value):
+            """Convertit un score en int (supporte int/float/str)."""
+            if value is None or pd.isna(value):
+                return None
+
+            # Cas courant Mongo->pandas: 1 devient 1.0 (numpy.float64)
+            numeric = pd.to_numeric(value, errors="coerce")
+            if not pd.isna(numeric):
+                return int(float(numeric))
+
+            # Fallback permissif si la valeur contient des caractères parasites.
+            match = re.search(r"-?\d+", str(value))
+            if match:
+                return int(match.group(0))
+            return None
+
+        hs_int = coerce_score(hs)
+        as_int = coerce_score(as_)
+
+        # Si les scores sont absents/inexploitables
+        if hs_int is None or as_int is None:
+            # Match terminé mais sans score = probablement annulé/reporté
+            if status == "finished" or status_code in [100, "100", 3, "3"]:
+                return "❌ Annulé"
+            # Match pas encore commencé
+            elif status == "not_started":
+                return "⏳ À venir"
+            # Autres cas
+            else:
+                return "-"
+        
+        return f"{hs_int} - {as_int}"
     
     def normalize_status(row) -> str:
         """Normalise le statut et gère les cas limites 'cancelled'."""
@@ -403,6 +475,7 @@ def create_layout():
                                             ],
                                         ),
                                         html.Div(
+                                            id="month-mode-wrapper",
                                             className="checkbox-wrapper",
                                             children=[
                                                 html.Label("Options", className="sub-label"),
@@ -413,6 +486,7 @@ def create_layout():
                                                     className="month-checkbox",
                                                 ),
                                             ],
+                                            style={"display": "none"},  # Hidden by default (upcoming mode)
                                         ),
                                     ],
                                 ),
@@ -494,13 +568,25 @@ def create_layout():
                             columns=[],
                             data=[],
                             page_size=20,
+                            filter_action="native",
+                            filter_options={
+                                "case": "insensitive",
+                                "placeholder_text": "Filtrer...",
+                            },
+                            sort_action="native",
+                            sort_mode="multi",
                             style_table={
                                 "width": "100%",
                                 "maxWidth": "100%",
                             },
+                            style_filter={
+                                "backgroundColor": "#f8fafc",
+                                "color": "#0f172a",
+                                "border": "1px solid #cbd5e1",
+                            },
                             style_cell={
                                 "textAlign": "left",
-                                "padding": "12px",
+                                "padding": "8px",
                                 "fontSize": "14px",
                                 "whiteSpace": "normal",
                                 "height": "auto",
@@ -647,8 +733,7 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league
         df = df[df.get('status', pd.Series()).isin(['in_progress', 'not_started', 'live'])]
     
     # Filtrer par ligue si nécessaire
-    if league_filter and league_filter != "all" and not df.empty:
-        df = df[df.get('league', pd.Series()).str.contains(league_filter, na=False)]
+    df = apply_league_filter(df, league_filter)
     
     # Calculer les stats pour les cards (toujours pour aujourd'hui)
     today_df = load_matches_from_db("upcoming", target_date=today_str)
@@ -779,3 +864,23 @@ def enforce_dataset_for_date(date_val: str, current_value: str):
     
     new_value = current_value if current_value in {"upcoming", "finished"} else "upcoming"
     return options_all, new_value
+
+
+@callback(
+    Output("month-mode-wrapper", "style"),
+    Output("month-mode", "value"),
+    Input("dataset-type", "value"),
+    State("month-mode", "value"),
+    prevent_initial_call=False,
+)
+def toggle_month_mode_visibility(dataset_type: str, current_value: list):
+    """Show/hide the month mode checkbox based on dataset type.
+    
+    The "Tout le mois" checkbox only makes sense for finished matches.
+    """
+    if dataset_type == "finished":
+        # Show checkbox and keep current value
+        return {"display": "block"}, current_value or []
+    else:
+        # Hide checkbox and clear value
+        return {"display": "none"}, []

@@ -976,7 +976,7 @@ html, body {
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
     font-weight: 700 !important;
     color: white !important;
-    padding: 16px 12px !important;
+    padding: 10px 12px !important;
     text-align: left !important;
     font-size: 12px !important;
     letter-spacing: 1px !important;
@@ -1096,6 +1096,18 @@ html, body {
     max-width: 40px !important;
     padding: 8px 4px !important;
     text-align: center !important;
+}
+
+/* Masquer les filtres sur les colonnes de logos */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table thead tr:nth-child(2) th[data-dash-column="home_logo_md"] input,
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table thead tr:nth-child(2) th[data-dash-column="away_logo_md"] input {
+    display: none !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table thead tr:nth-child(2) th[data-dash-column="home_logo_md"],
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner table thead tr:nth-child(2) th[data-dash-column="away_logo_md"] {
+    pointer-events: none !important;
+    background-color: #f8fafc !important;
 }
 
 /* Images dans le tableau */
