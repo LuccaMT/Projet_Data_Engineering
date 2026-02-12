@@ -36,6 +36,10 @@ def create_layout():
                     ),
                     html.P(
                         "Scraping, stockage et visualisation de données football en temps réel",
+                        style={"fontSize": "18px", "opacity": "0.8", "marginBottom": "5px"}
+                    ),
+                    html.P(
+                        "Réalisé par Rayan Ben Tanfous et Lucca Matsumoto",
                         style={"fontSize": "18px", "opacity": "0.8"}
                     ),
                 ]
@@ -61,15 +65,12 @@ def create_layout():
                         },
                         children=[
                             html.H2(
-                                "📖 À propos du projet",
+                                "📖 À propos du projet 📖",
                                 style={"color": "#1e293b", "marginBottom": "20px", "textAlign": "center"}
                             ),
                             html.P(
                                 "Ce projet est une application web complète de Data Engineering qui collecte, stocke et visualise "
-                                "des données de matchs de football depuis Flashscore.fr en temps réel.",
-                                style={"fontSize": "16px", "lineHeight": "1.6", "marginBottom": "15px", "textAlign": "center"}
-                            ),
-                            html.P(
+                                "des données de matchs de football depuis Flashscore.fr en temps réel. "
                                 "L'application permet de suivre les matchs en direct, consulter les résultats passés, "
                                 "explorer les classements des ligues et les brackets des compétitions à élimination directe.",
                                 style={"fontSize": "16px", "lineHeight": "1.6", "marginBottom": "15px", "textAlign": "center"}
@@ -103,7 +104,7 @@ def create_layout():
                                                     html.Li("Classements des ligues (Top 5)"),
                                                     html.Li("Brackets des compétitions à élimination"),
                                                     html.Li("Filtrage avancé par date et ligue/coupe"),
-                                                    html.Li("Recherche de clubs et statistiques détaillées"),
+                                                    html.Li("Recherche de clubs, comparaison et statistiques détaillées"),
                                                 ]
                                             )
                                         ]
