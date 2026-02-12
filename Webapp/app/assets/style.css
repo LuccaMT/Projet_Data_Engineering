@@ -1578,6 +1578,8 @@ html {
 
 .league-column {
     position: relative;
+    max-width: 900px;
+    width: 100%;
 }
 
 .matches-list {
@@ -1657,6 +1659,11 @@ html {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+/* Aligner l'équipe à l'extérieur (away) à droite */
+.match-card-body .team-chip:nth-child(3) {
+    justify-content: flex-end;
 }
 
 .team-chip-name {

@@ -72,8 +72,8 @@ def create_layout():
                                 "Ce projet est une application web complète de Data Engineering qui collecte, stocke et visualise "
                                 "des données de matchs de football depuis Flashscore.fr en temps réel. "
                                 "L'application permet de suivre les matchs en direct, consulter les résultats passés, "
-                                "explorer les classements des ligues et les brackets des compétitions à élimination directe.",
-                                style={"fontSize": "16px", "lineHeight": "1.6", "marginBottom": "15px", "textAlign": "center"}
+                                "et explorer les classements des ligues et coupes.",
+                                style={"fontSize": "16px", "lineHeight": "1.6", "marginBottom": "20px", "textAlign": "center"}
                             ),
                             html.Div(
                                 style={"display": "flex", "gap": "20px", "marginTop": "30px", "flexWrap": "wrap", "justifyContent": "flex-start"},
@@ -101,8 +101,8 @@ def create_layout():
                                                 style={"lineHeight": "1.8", "paddingLeft": "30px"},
                                                 children=[
                                                     html.Li("Matchs en direct et statistiques"),
-                                                    html.Li("Classements des ligues (Top 5)"),
-                                                    html.Li("Brackets des compétitions à élimination"),
+                                                    html.Li("Classements des ligues (Top 5 et +)"),
+                                                    html.Li("Coupes et compétitions à élimination"),
                                                     html.Li("Filtrage avancé par date et ligue/coupe"),
                                                     html.Li("Recherche de clubs, comparaison et statistiques détaillées"),
                                                 ]
