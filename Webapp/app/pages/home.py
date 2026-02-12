@@ -9,9 +9,6 @@ def create_layout():
     return html.Div(
         className="app-wrapper",
         children=[
-            # Navbar
-            create_navbar(current_page="home"),
-            
             # Hero Section
             html.Div(
                 className="hero-section",
@@ -19,8 +16,7 @@ def create_layout():
                     "background": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                     "padding": "60px 20px",
                     "textAlign": "center",
-                    "color": "white",
-                    "marginBottom": "40px"
+                    "color": "white"
                 },
                 children=[
                     html.Img(
@@ -31,7 +27,7 @@ def create_layout():
                         }
                     ),
                     html.H1(
-                        "⚽ Flashscore Football Dashboard",
+                        "Flashscore Football Dashboard",
                         style={"fontSize": "48px", "fontWeight": "700", "marginBottom": "20px"}
                     ),
                     html.P(
@@ -45,10 +41,13 @@ def create_layout():
                 ]
             ),
             
+            # Navbar
+            create_navbar(current_page="home"),
+            
             # Main Content
             html.Div(
                 className="main-content",
-                style={"maxWidth": "1200px", "margin": "0 auto", "padding": "0 40px"},
+                style={"maxWidth": "1200px", "margin": "0 auto", "padding": "0 40px", "marginTop": "40px"},
                 children=[
                     # Description du projet
                     html.Div(
@@ -103,7 +102,8 @@ def create_layout():
                                                     html.Li("Matchs en direct et statistiques"),
                                                     html.Li("Classements des ligues (Top 5)"),
                                                     html.Li("Brackets des compétitions à élimination"),
-                                                    html.Li("Filtrage avancé par date et ligue"),
+                                                    html.Li("Filtrage avancé par date et ligue/coupe"),
+                                                    html.Li("Recherche de clubs et statistiques détaillées"),
                                                 ]
                                             )
                                         ]
@@ -157,7 +157,7 @@ def create_layout():
                                                 children=[
                                                     html.Li([html.Strong("MongoDB 7.0"), " - Base NoSQL"]),
                                                     html.Li([html.Strong("PyMongo"), " - Driver Python MongoDB"]),
-                                                    html.Li([html.Strong("Collections"), " - matches_upcoming, matches_finished, standings, cup_brackets"]),
+                                                    html.Li([html.Strong("Elasticsearch"), " - Moteur de recherche et indexation"]),
                                                 ]
                                             )
                                         ]
