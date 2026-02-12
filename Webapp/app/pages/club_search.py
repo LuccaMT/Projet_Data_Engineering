@@ -191,14 +191,18 @@ def search_clubs(n_clicks, n_submit, search_query):
                         html.Span(str(losses), className="stat-value", style={'color': '#eb3349'}),
                         html.Span("Défaites", className="stat-label")
                     ], className="stat-item"),
-                ], className="stats-grid"),
+                ], className="stats-grid", style={'gridTemplateColumns': 'repeat(2, 1fr)', 'gap': '0.5rem', 'marginBottom': '1rem'}),
                 
                 # Badges de stats
                 html.Div([
-                    html.Span(f"⚽ {goals_for} buts marqués", className=f"stat-badge success"),
-                    html.Span(f"🛡️ {goals_against} encaissés", className=f"stat-badge warning"),
+                    html.Span(f"⚽ {goals_for} marqués", className="stat-badge success"),
+                    html.Span(f"🛡️ {goals_against} encaissés", className="stat-badge warning"),
                     html.Span(f"📊 {win_rate:.0f}% victoires", className=f"stat-badge {badge_color}"),
-                ], className="mb-3"),
+                    html.Span(
+                        f"📈 {goals_for - goals_against:+d}",
+                        className=f"stat-badge {'success' if goals_for - goals_against >= 0 else 'secondary'}"
+                    ),
+                ], style={'display': 'flex', 'flexWrap': 'wrap', 'gap': '0.4rem', 'marginBottom': '1rem'}),
                 
                 # Forme récente
                 html.Div([
@@ -226,17 +230,23 @@ def search_clubs(n_clicks, n_submit, search_query):
     
     return html.Div([
         html.Div([
-            html.H3(
-                f"✨ {len(clubs)} club(s) trouvé(s)",
-                style={
-                    'color': 'white',
-                    'textAlign': 'center',
-                    'marginBottom': '2rem',
-                    'fontSize': '1.8rem',
-                    'fontWeight': '600',
-                    'textShadow': '0 2px 4px rgba(0,0,0,0.1)'
-                }
-            ),
+            html.Div([
+                html.Span(str(len(clubs)), style={
+                    'fontSize': '2.5rem', 'fontWeight': '800',
+                    'background': 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                    'WebkitBackgroundClip': 'text',
+                    'WebkitTextFillColor': 'transparent',
+                    'marginRight': '0.75rem'
+                }),
+                html.Span("club(s) trouvé(s)", style={
+                    'fontSize': '1.3rem', 'fontWeight': '600',
+                    'color': '#475569'
+                })
+            ], style={'textAlign': 'center', 'marginBottom': '2rem', 'padding': '1.25rem',
+                      'background': 'white', 'borderRadius': '16px',
+                      'boxShadow': '0 2px 8px rgba(0,0,0,0.06)',
+                      'border': '1px solid #e2e8f0',
+                      'overflow': 'hidden', 'wordBreak': 'break-word'}),
             dbc.Row(club_cards, className="g-4")
         ])
     ])

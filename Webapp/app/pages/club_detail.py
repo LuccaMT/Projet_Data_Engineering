@@ -116,29 +116,53 @@ def display_club_detail(search):
     results_pie = go.Figure(data=[go.Pie(
         labels=['Victoires', 'Nuls', 'Défaites'],
         values=[wins, draws, losses],
-        marker=dict(colors=['#10b981', '#64748b', '#ef4444']),
-        hole=0.4
+        marker=dict(
+            colors=['#10b981', '#94a3b8', '#ef4444'],
+            line=dict(color='#ffffff', width=2)
+        ),
+        hole=0.45,
+        textinfo='percent+label',
+        textfont=dict(size=13, family='Inter'),
+        hoverinfo='label+value+percent',
+        pull=[0.03, 0, 0.03]
     )])
     results_pie.update_layout(
-        title="Répartition des résultats",
-        height=350,
+        title=dict(text='Répartition des résultats', font=dict(size=16, family='Inter', color='#0f172a')),
+        height=370,
         showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=-0.15, xanchor='center', x=0.5, font=dict(size=12)),
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=50, b=40, l=20, r=20)
     )
     
     # 2. Bar chart buts pour/contre
     goals_bar = go.Figure(data=[
-        go.Bar(name='Buts marqués', x=['Attaque'], y=[goals_for], marker_color='#10b981'),
-        go.Bar(name='Buts encaissés', x=['Défense'], y=[goals_against], marker_color='#ef4444')
+        go.Bar(
+            name='Buts marqués', x=['Bilan'], y=[goals_for],
+            marker=dict(color='#10b981', cornerradius=6),
+            text=[str(goals_for)], textposition='outside',
+            textfont=dict(size=14, family='Inter', color='#10b981')
+        ),
+        go.Bar(
+            name='Buts encaissés', x=['Bilan'], y=[goals_against],
+            marker=dict(color='#ef4444', cornerradius=6),
+            text=[str(goals_against)], textposition='outside',
+            textfont=dict(size=14, family='Inter', color='#ef4444')
+        )
     ])
     goals_bar.update_layout(
-        title="Buts marqués vs Buts encaissés",
-        yaxis_title="Nombre de buts",
-        height=350,
+        title=dict(text='Attaque vs Défense', font=dict(size=16, family='Inter', color='#0f172a')),
+        yaxis=dict(title='Nombre de buts', gridcolor='rgba(0,0,0,0.04)', zeroline=False),
+        xaxis=dict(showticklabels=False),
+        height=370,
         showlegend=True,
+        legend=dict(orientation='h', yanchor='bottom', y=-0.15, xanchor='center', x=0.5, font=dict(size=12)),
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=50, b=40, l=50, r=20),
+        barmode='group',
+        bargap=0.35
     )
     
     # 3. Line chart forme récente (derniers 20 matchs)
@@ -174,25 +198,35 @@ def display_club_detail(search):
         form_data.append(result)
         form_labels.append(f"vs {opponent}")
     
+    # Couleurs par résultat pour les marqueurs
+    marker_colors = ['#10b981' if v == 3 else '#94a3b8' if v == 1 else '#ef4444' for v in form_data]
+    
     form_line = go.Figure()
     form_line.add_trace(go.Scatter(
         x=list(range(len(form_data))),
         y=form_data,
         mode='lines+markers',
-        line=dict(color='#007bff', width=3),
-        marker=dict(size=10),
+        line=dict(color='#2563eb', width=3, shape='spline'),
+        marker=dict(size=12, color=marker_colors, line=dict(width=2, color='white')),
         text=form_labels,
-        hovertemplate='<b>%{text}</b><br>Points: %{y}<extra></extra>'
+        hovertemplate='<b>%{text}</b><br>Points: %{y}<extra></extra>',
+        fill='tozeroy',
+        fillcolor='rgba(37, 99, 235, 0.06)'
     ))
     form_line.update_layout(
-        title="Évolution de la forme (derniers matchs)",
-        xaxis_title="Matchs",
-        yaxis_title="Points (V=3, N=1, D=0)",
-        height=350,
-        yaxis=dict(tickmode='array', tickvals=[0, 1, 3], ticktext=['Défaite', 'Nul', 'Victoire']),
+        title=dict(text='Courbe de forme', font=dict(size=16, family='Inter', color='#0f172a')),
+        xaxis=dict(title='Matchs', showgrid=False),
+        yaxis=dict(
+            title='Résultat',
+            tickmode='array', tickvals=[0, 1, 3],
+            ticktext=['Défaite', 'Nul', 'Victoire'],
+            gridcolor='rgba(0,0,0,0.04)', zeroline=False
+        ),
+        height=370,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        hovermode='x'
+        hovermode='x unified',
+        margin=dict(t=50, b=40, l=60, r=20)
     )
     
     # ========== LAYOUT ==========
@@ -202,99 +236,99 @@ def display_club_detail(search):
         # Header moderne avec le nom du club
         html.Div([
             html.Div([
-                html.Img(
-                    src=club.get('logo', ''),
-                    className="club-logo",
-                    style={'width': '100px', 'height': '100px', 'marginRight': '2rem'}
-                ) if club.get('logo') else None,
                 html.Div([
-                    html.H1(club_name, className="club-detail-title"),
-                    html.P(
-                        ' • '.join(leagues),
-                        style={'fontSize': '1.2rem', 'color': '#718096', 'fontWeight': '500'}
+                    html.Img(
+                        src=club.get('logo', ''),
+                        className="compare-club-logo",
+                        style={'width': '100px', 'height': '100px', 'maxWidth': '100%'}
                     )
+                ]) if club.get('logo') else None,
+                html.Div([
+                    html.H1(club_name, className="club-detail-title", style={'marginBottom': '0.5rem'}),
+                    html.Div([
+                        html.Span(
+                            league,
+                            style={
+                                'display': 'inline-block',
+                                'padding': '0.35rem 1rem',
+                                'borderRadius': '9999px',
+                                'background': '#eff6ff',
+                                'color': '#1e40af',
+                                'fontSize': '0.9rem',
+                                'fontWeight': '600',
+                                'marginRight': '0.5rem',
+                                'marginBottom': '0.25rem'
+                            }
+                        ) for league in leagues
+                    ], style={'display': 'flex', 'flexWrap': 'wrap', 'gap': '0.25rem'})
                 ])
-            ], style={'display': 'flex', 'alignItems': 'center', 'position': 'relative', 'zIndex': '1'})
+            ], style={'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'justifyContent': 'center', 'gap': '1rem', 'position': 'relative', 'zIndex': '1'})
         ], className="club-detail-header"),
         
         # Statistiques rapides en grille moderne
         html.Div([
-            html.Div([
-                html.Div("📊", style={'fontSize': '2.5rem', 'marginBottom': '1rem'}),
-                html.Div(str(total), className="stat-value", style={'fontSize': '3rem'}),
-                html.Div("Matchs joués", className="stat-label")
-            ], className="stat-item", style={'padding': '2.5rem'}),
-            html.Div([
-                html.Div("🏆", style={'fontSize': '2.5rem', 'marginBottom': '1rem'}),
-                html.Div(f"{win_rate:.1f}%", className="stat-value", style={'fontSize': '3rem', 'color': '#2563eb'}),
-                html.Div("Taux de victoire", className="stat-label")
-            ], className="stat-item", style={'padding': '2.5rem'}),
-            html.Div([
-                html.Div("⚽", style={'fontSize': '2.5rem', 'marginBottom': '1rem'}),
-                html.Div(f"{goals_for}-{goals_against}", className="stat-value", style={'fontSize': '3rem', 'color': '#7c3aed'}),
-                html.Div("Buts (pour-contre)", className="stat-label")
-            ], className="stat-item", style={'padding': '2.5rem'}),
-            html.Div([
-                html.Div("📈", style={'fontSize': '2.5rem', 'marginBottom': '1rem'}),
-                html.Div(f"{goal_diff:+d}", className="stat-value", style={'fontSize': '3rem', 'color': '#10b981' if goal_diff >= 0 else '#ef4444'}),
-                html.Div("Différence de buts", className="stat-label")
-            ], className="stat-item", style={'padding': '2.5rem'}),
-        ], className="stats-grid", style={'gridTemplateColumns': 'repeat(auto-fit, minmax(180px, 1fr))', 'gap': '1.5rem', 'margin': '2rem 0'}),
+            create_detail_stat_card("📊", str(total), "Matchs joués", None),
+            create_detail_stat_card("🏆", f"{win_rate:.1f}%", "Taux de victoire", '#2563eb'),
+            create_detail_stat_card("⚽", f"{goals_for}", "Buts marqués", '#10b981'),
+            create_detail_stat_card("🛡️", f"{goals_against}", "Buts encaissés", '#f59e0b'),
+            create_detail_stat_card("📈", f"{goal_diff:+d}", "Différence de buts", '#10b981' if goal_diff >= 0 else '#ef4444'),
+        ], className="stats-grid", style={'gap': '1rem', 'margin': '2rem 0'}),
         
         # Bilan détaillé avec forme récente
-        html.Div([
-            html.Div([
-                html.H3("📊 Bilan complet", className="chart-title"),
+        dbc.Row([
+            dbc.Col([
                 html.Div([
+                    html.H3("📊 Bilan complet", className="chart-title"),
                     html.Div([
-                        html.Div("🏆", style={'fontSize': '2rem', 'marginBottom': '0.5rem'}),
-                        html.Div(str(wins), className="stat-value", style={'fontSize': '2.5rem', 'color': '#10b981'}),
-                        html.Div("Victoires", className="stat-label")
-                    ], className="stat-item"),
-                    html.Div([
-                        html.Div("🤝", style={'fontSize': '2rem', 'marginBottom': '0.5rem'}),
-                        html.Div(str(draws), className="stat-value", style={'fontSize': '2.5rem', 'color': '#64748b'}),
-                        html.Div("Nuls", className="stat-label")
-                    ], className="stat-item"),
-                    html.Div([
-                        html.Div("❌", style={'fontSize': '2rem', 'marginBottom': '0.5rem'}),
-                        html.Div(str(losses), className="stat-value", style={'fontSize': '2.5rem', 'color': '#ef4444'}),
-                        html.Div("Défaites", className="stat-label")
-                    ], className="stat-item")
-                ], className="stats-grid", style={'gridTemplateColumns': '1fr 1fr 1fr'})
-            ], style={'flex': '1'}),
-            html.Div([
-                html.H3("🔥 Forme récente", className="chart-title"),
+                        html.Div([
+                            html.Div(str(wins), className="stat-value", style={'fontSize': '2.5rem', 'color': '#10b981', 'marginBottom': '0.25rem'}),
+                            html.Div("Victoires", className="stat-label")
+                        ], className="stat-item", style={'background': '#f0fdf4', 'border': '1px solid #bbf7d0'}),
+                        html.Div([
+                            html.Div(str(draws), className="stat-value", style={'fontSize': '2.5rem', 'color': '#64748b', 'marginBottom': '0.25rem'}),
+                            html.Div("Nuls", className="stat-label")
+                        ], className="stat-item", style={'background': '#f8fafc', 'border': '1px solid #e2e8f0'}),
+                        html.Div([
+                            html.Div(str(losses), className="stat-value", style={'fontSize': '2.5rem', 'color': '#ef4444', 'marginBottom': '0.25rem'}),
+                            html.Div("Défaites", className="stat-label")
+                        ], className="stat-item", style={'background': '#fef2f2', 'border': '1px solid #fecaca'})
+                    ], className="stats-grid", style={'gridTemplateColumns': '1fr 1fr 1fr'})
+                ], className="modern-chart-container", style={'height': '100%'})
+            ], md=7),
+            dbc.Col([
                 html.Div([
-                    html.Span(
-                        result,
-                        className=f"form-indicator {'win' if result == 'W' else 'draw' if result == 'D' else 'loss'}",
-                        title=f"{'Victoire' if result == 'W' else 'Nul' if result == 'D' else 'Défaite'}"
-                    ) for result in recent_form
-                ] if recent_form else [html.P("Pas de données disponibles", className="text-muted")],
-                    className="form-indicators",
-                    style={'justifyContent': 'center', 'padding': '2rem'}
-                )
-            ], style={'flex': '1'})
-        ], style={'display': 'flex', 'gap': '2rem', 'marginBottom': '2rem', 'flexWrap': 'wrap'}, className="modern-chart-container"),
+                    html.H3("🔥 Forme récente", className="chart-title"),
+                    html.Div([
+                        html.Span(
+                            result,
+                            className=f"form-indicator {'win' if result == 'W' else 'draw' if result == 'D' else 'loss'}",
+                            title=f"{'Victoire' if result == 'W' else 'Nul' if result == 'D' else 'Défaite'}"
+                        ) for result in recent_form
+                    ] if recent_form else [html.P("Pas de données disponibles", className="text-muted")],
+                        className="form-indicators",
+                        style={'justifyContent': 'center', 'padding': '2.5rem 1rem', 'gap': '0.5rem'}
+                    )
+                ], className="modern-chart-container", style={'height': '100%', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'center'})
+            ], md=5)
+        ], className="mb-4"),
         
         # Graphiques interactifs
         dbc.Row([
             dbc.Col([
                 html.Div([
-                    dcc.Graph(figure=results_pie, config={'displayModeBar': False})
+                    dcc.Graph(figure=results_pie, config={'displayModeBar': False, 'responsive': True})
                 ], className="modern-chart-container")
-            ], md=4),
+            ], xs=12, md=6, lg=4, className="mb-3"),
             dbc.Col([
                 html.Div([
-                    dcc.Graph(figure=goals_bar, config={'displayModeBar': False})
+                    dcc.Graph(figure=goals_bar, config={'displayModeBar': False, 'responsive': True})
                 ], className="modern-chart-container")
-            ], md=4),
+            ], xs=12, md=6, lg=4, className="mb-3"),
             dbc.Col([
                 html.Div([
-                    dcc.Graph(figure=form_line, config={'displayModeBar': False})
+                    dcc.Graph(figure=form_line, config={'displayModeBar': False, 'responsive': True})
                 ], className="modern-chart-container")
-            ], md=4)
+            ], xs=12, md=12, lg=4, className="mb-3")
         ], className="mb-4"),
         
         # Historique des matchs moderne
@@ -309,14 +343,38 @@ def display_club_detail(search):
         
         # Bouton de comparaison moderne
         html.Div([
+            html.Div(className="section-separator"),
             dbc.Button(
-                ["⚖️ Comparer avec un autre club"],
+                ["⚖️  Comparer avec un autre club"],
                 href=f"/clubs/compare?club1={club_name}",
                 className="modern-btn modern-btn-primary",
-                style={'width': '100%', 'maxWidth': '400px', 'margin': '0 auto', 'display': 'block', 'fontSize': '1.1rem', 'padding': '1rem'}
+                style={
+                    'width': '100%', 'maxWidth': '420px',
+                    'margin': '0 auto', 'display': 'block',
+                    'fontSize': '1.1rem', 'padding': '1.1rem 2rem',
+                    'borderRadius': '14px',
+                    'background': 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                    'boxShadow': '0 8px 30px rgba(37, 99, 235, 0.2)'
+                }
             )
-        ], style={'marginTop': '3rem', 'textAlign': 'center'})
+        ], style={'marginTop': '3rem', 'textAlign': 'center', 'paddingBottom': '2rem'})
     ])
+
+
+def create_detail_stat_card(icon, value, label, color):
+    """Crée une carte de stat moderne pour la page de détail."""
+    return html.Div([
+        html.Div(icon, style={'fontSize': '2rem', 'marginBottom': '0.75rem'}),
+        html.Div(
+            str(value), className="stat-value",
+            style={
+                'fontSize': '2.5rem',
+                'color': color if color else '#0f172a',
+                'marginBottom': '0.25rem'
+            }
+        ),
+        html.Div(label, className="stat-label")
+    ], className="stat-item", style={'padding': '1.5rem'})
 
 
 def create_match_row(match, club_name):
@@ -359,30 +417,25 @@ def create_match_row(match, club_name):
             html.Span(
                 result_symbol,
                 className=f"form-indicator {result_class}",
-                style={'marginRight': '1rem', 'width': '40px', 'height': '40px', 'fontSize': '1rem'}
+                style={'width': '38px', 'height': '38px', 'fontSize': '0.9rem', 'flexShrink': '0'}
             ),
             html.Div([
-                html.Span(f"vs {opponent}", style={'fontWeight': '600', 'fontSize': '1.1rem', 'color': '#2d3748'}),
-                html.Span(league, className="text-muted", style={'fontSize': '0.85rem', 'marginLeft': '1rem'})
-            ], style={'flex': '1'}),
+                html.Span(f"vs {opponent}", style={
+                    'fontWeight': '600', 'fontSize': '1rem', 'color': '#0f172a',
+                    'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap'
+                }),
+                html.Span(
+                    league,
+                    style={
+                        'fontSize': '0.75rem', 'flexShrink': '0',
+                        'padding': '0.2rem 0.6rem', 'background': '#f1f5f9',
+                        'borderRadius': '9999px', 'color': '#64748b', 'fontWeight': '500'
+                    }
+                )
+            ], style={'flex': '1', 'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'gap': '0.5rem', 'minWidth': '0', 'overflow': 'hidden'}),
             html.Span(
                 score_text,
-                style={
-                    'fontSize': '1.3rem',
-                    'fontWeight': '700',
-                    'color': '#2563eb',
-                    'padding': '0.5rem 1.2rem',
-                    'background': '#f8fafc',
-                    'borderRadius': '12px',
-                    'border': '1px solid #e2e8f0'
-                }
+                className="score-bubble"
             )
         ], style={'display': 'flex', 'alignItems': 'center', 'gap': '1rem'})
-    ], style={
-        'padding': '1.2rem',
-        'marginBottom': '0.8rem',
-        'background': 'white',
-        'borderRadius': '12px',
-        'border': '1px solid #e2e8f0',
-        'transition': 'all 0.2s ease'
-    }, className="match-row-hover")
+    ], className="detail-match-row")

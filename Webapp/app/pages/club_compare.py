@@ -71,19 +71,19 @@ def layout():
                             type="text",
                             className="modern-search-input"
                         ),
-                    ], md=5),
+                    ], xs=12, md=5),
                     dbc.Col([
                         html.Div(
                             "VS",
                             style={
                                 'textAlign': 'center',
-                                'fontSize': '2rem',
+                                'fontSize': '1.5rem',
                                 'fontWeight': '800',
                                 'color': '#2563eb',
-                                'marginTop': '3rem'
+                                'padding': '1rem 0'
                             }
                         )
-                    ], md=2),
+                    ], xs=12, md=2),
                     dbc.Col([
                         html.Label("🏆 Second club", style={'fontWeight': '600', 'color': '#2d3748', 'marginBottom': '0.8rem', 'fontSize': '1.1rem'}),
                         dbc.Input(
@@ -92,7 +92,7 @@ def layout():
                             type="text",
                             className="modern-search-input"
                         ),
-                    ], md=5)
+                    ], xs=12, md=5)
                 ], className="align-items-end mb-4"),
                 dbc.Button(
                     ["✨ Comparer les clubs"],
@@ -178,56 +178,64 @@ def display_comparison(search, n_clicks, club1_input, club2_input):
             name=club1,
             x=['Victoires', 'Nuls', 'Défaites'],
             y=[club1_data['wins'], club1_data['draws'], club1_data['losses']],
-            marker_color='#2563eb'
+            marker=dict(color='#2563eb', cornerradius=6),
+            text=[club1_data['wins'], club1_data['draws'], club1_data['losses']],
+            textposition='outside', textfont=dict(size=13, family='Inter')
         ),
         go.Bar(
             name=club2,
             x=['Victoires', 'Nuls', 'Défaites'],
             y=[club2_data['wins'], club2_data['draws'], club2_data['losses']],
-            marker_color='#7c3aed'
+            marker=dict(color='#7c3aed', cornerradius=6),
+            text=[club2_data['wins'], club2_data['draws'], club2_data['losses']],
+            textposition='outside', textfont=dict(size=13, family='Inter')
         )
     ])
     results_comparison.update_layout(
-        title="Comparaison des résultats",
+        title=dict(text='Comparaison des résultats', font=dict(size=16, family='Inter', color='#0f172a')),
         barmode='group',
-        height=400,
+        height=420,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(gridcolor='rgba(0,0,0,0.04)', zeroline=False),
+        legend=dict(orientation='h', yanchor='bottom', y=-0.15, xanchor='center', x=0.5, font=dict(size=12)),
+        margin=dict(t=50, b=50, l=40, r=20),
+        bargap=0.25
     )
     
     # 2. Bar chart buts marqués vs encaissés
     goals_comparison = go.Figure(data=[
         go.Bar(
-            name=f'{club1} - Marqués',
-            x=['Buts'],
-            y=[club1_data['goals_for']],
-            marker_color='#10b981'
+            name=f'{club1} – Marqués', x=[club1], y=[club1_data['goals_for']],
+            marker=dict(color='#10b981', cornerradius=6),
+            text=[club1_data['goals_for']], textposition='outside'
         ),
         go.Bar(
-            name=f'{club1} - Encaissés',
-            x=['Buts'],
-            y=[club1_data['goals_against']],
-            marker_color='#ef4444'
+            name=f'{club1} – Encaissés', x=[club1], y=[club1_data['goals_against']],
+            marker=dict(color='#ef4444', cornerradius=6),
+            text=[club1_data['goals_against']], textposition='outside'
         ),
         go.Bar(
-            name=f'{club2} - Marqués',
-            x=['Buts'],
-            y=[club2_data['goals_for']],
-            marker_color='#06b6d4'
+            name=f'{club2} – Marqués', x=[club2], y=[club2_data['goals_for']],
+            marker=dict(color='#06b6d4', cornerradius=6),
+            text=[club2_data['goals_for']], textposition='outside'
         ),
         go.Bar(
-            name=f'{club2} - Encaissés',
-            x=['Buts'],
-            y=[club2_data['goals_against']],
-            marker_color='#f59e0b'
+            name=f'{club2} – Encaissés', x=[club2], y=[club2_data['goals_against']],
+            marker=dict(color='#f59e0b', cornerradius=6),
+            text=[club2_data['goals_against']], textposition='outside'
         )
     ])
     goals_comparison.update_layout(
-        title="Comparaison des buts",
+        title=dict(text='Buts marqués vs encaissés', font=dict(size=16, family='Inter', color='#0f172a')),
         barmode='group',
-        height=400,
+        height=420,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(gridcolor='rgba(0,0,0,0.04)', zeroline=False),
+        legend=dict(orientation='h', yanchor='bottom', y=-0.2, xanchor='center', x=0.5, font=dict(size=11)),
+        margin=dict(t=50, b=60, l=40, r=20),
+        bargap=0.2
     )
     
     # 3. Radar chart comparatif (taux de victoire, buts marqués, défense)
@@ -258,152 +266,146 @@ def display_comparison(search, n_clicks, club1_input, club2_input):
         theta=categories,
         fill='toself',
         name=club1,
-        line_color='#2563eb'
+        line=dict(color='#2563eb', width=2),
+        fillcolor='rgba(37, 99, 235, 0.12)',
+        marker=dict(size=6)
     ))
     radar_chart.add_trace(go.Scatterpolar(
         r=club2_radar,
         theta=categories,
         fill='toself',
         name=club2,
-        line_color='#7c3aed'
+        line=dict(color='#7c3aed', width=2),
+        fillcolor='rgba(124, 58, 237, 0.12)',
+        marker=dict(size=6)
     ))
     radar_chart.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-        title="Vue d'ensemble comparative",
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], gridcolor='rgba(0,0,0,0.06)', tickfont=dict(size=10)),
+            angularaxis=dict(tickfont=dict(size=12, family='Inter'))
+        ),
+        title=dict(text="Vue d'ensemble comparative", font=dict(size=16, family='Inter', color='#0f172a')),
         height=500,
-        paper_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        legend=dict(orientation='h', yanchor='bottom', y=-0.15, xanchor='center', x=0.5, font=dict(size=13)),
+        margin=dict(t=60, b=50)
     )
     
     # ========== LAYOUT ==========
     
     return club1, club2, html.Div([
-        # En-têtes des clubs
+        # Bannière de comparaison moderne
         html.Div([
             html.Div([
-                html.Div([
-                    html.Img(
-                        src=club1_data.get('logo', ''),
-                        style={'width': '100px', 'height': '100px', 'objectFit': 'contain', 'filter': 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))'}
-                    ) if club1_data.get('logo') else None,
-                    html.H2(club1, style={'marginTop': '1rem', 'fontSize': '2rem', 'fontWeight': '700', 'color': '#2d3748'}),
-                    html.P(' | '.join(club1_data.get('leagues', [])), style={'color': '#718096', 'fontSize': '0.95rem'})
-                ], style={'textAlign': 'center'})
-            ], style={'flex': '1'}),
+                html.Img(
+                    src=club1_data.get('logo', ''),
+                    className="compare-club-logo"
+                ) if club1_data.get('logo') else None,
+                html.H2(club1, className="compare-club-name"),
+                html.P(' | '.join(club1_data.get('leagues', [])), className="compare-club-league")
+            ], className="compare-club-side"),
             html.Div([
                 html.Div("VS", className="vs-badge")
-            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '0 2rem'}),
+            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '0 1.5rem'}),
             html.Div([
-                html.Div([
-                    html.Img(
-                        src=club2_data.get('logo', ''),
-                        style={'width': '100px', 'height': '100px', 'objectFit': 'contain', 'filter': 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))'}
-                    ) if club2_data.get('logo') else None,
-                    html.H2(club2, style={'marginTop': '1rem', 'fontSize': '2rem', 'fontWeight': '700', 'color': '#2d3748'}),
-                    html.P(' | '.join(club2_data.get('leagues', [])), style={'color': '#718096', 'fontSize': '0.95rem'})
-                ], style={'textAlign': 'center'})
-            ], style={'flex': '1'})
-        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'background': 'white', 'borderRadius': '20px', 'padding': '3rem 2rem', 'marginBottom': '3rem', 'boxShadow': '0 10px 30px rgba(0,0,0,0.1)'}),
+                html.Img(
+                    src=club2_data.get('logo', ''),
+                    className="compare-club-logo"
+                ) if club2_data.get('logo') else None,
+                html.H2(club2, className="compare-club-name"),
+                html.P(' | '.join(club2_data.get('leagues', [])), className="compare-club-league")
+            ], className="compare-club-side")
+        ], className="compare-banner", style={'marginBottom': '2.5rem'}),
         
         # Statistiques comparatives
         html.Div([
-            create_modern_stat_card(
-                "📊",
-                "Matchs joués",
-                club1_data['total_matches'],
-                club2_data['total_matches']
+            create_compare_stat_card(
+                "📊", "Matchs joués",
+                club1_data['total_matches'], club2_data['total_matches']
             ),
-            create_modern_stat_card(
-                "🏆",
-                "Taux de victoire",
-                f"{club1_data['win_rate']:.1f}%",
-                f"{club2_data['win_rate']:.1f}%"
+            create_compare_stat_card(
+                "🏆", "Taux de victoire",
+                f"{club1_data['win_rate']:.1f}%", f"{club2_data['win_rate']:.1f}%"
             ),
-            create_modern_stat_card(
-                "⚽",
-                "Buts marqués",
-                club1_data['goals_for'],
-                club2_data['goals_for']
+            create_compare_stat_card(
+                "⚽", "Buts marqués",
+                club1_data['goals_for'], club2_data['goals_for']
             ),
-            create_modern_stat_card(
-                "📈",
-                "Différence de buts",
-                f"+{club1_data['goal_difference']}" if club1_data['goal_difference'] >= 0 else club1_data['goal_difference'],
-                f"+{club2_data['goal_difference']}" if club2_data['goal_difference'] >= 0 else club2_data['goal_difference']
+            create_compare_stat_card(
+                "🛡️", "Buts encaissés",
+                club1_data['goals_against'], club2_data['goals_against'],
+                lower_is_better=True
+            ),
+            create_compare_stat_card(
+                "📈", "Différence de buts",
+                f"{club1_data['goal_difference']:+d}",
+                f"{club2_data['goal_difference']:+d}"
             )
-        ], className="stats-grid", style={'gridTemplateColumns': 'repeat(auto-fit, minmax(200px, 1fr))', 'gap': '1.5rem', 'margin': '2rem 0 3rem 0'}),
+        ], className="stats-grid", style={'gap': '1rem', 'margin': '0 0 2.5rem 0'}),
         
         # Graphiques
         html.Div([
             html.Div([
-                dcc.Graph(figure=results_comparison, config={'displayModeBar': False})
-            ], className="modern-chart-container", style={'flex': '1'}),
+                dcc.Graph(figure=results_comparison, config={'displayModeBar': False, 'responsive': True})
+            ], className="modern-chart-container"),
             html.Div([
-                dcc.Graph(figure=goals_comparison, config={'displayModeBar': False})
-            ], className="modern-chart-container", style={'flex': '1'})
-        ], style={'display': 'flex', 'gap': '2rem', 'marginBottom': '2rem'}),
+                dcc.Graph(figure=goals_comparison, config={'displayModeBar': False, 'responsive': True})
+            ], className="modern-chart-container")
+        ], className="charts-flex-row", style={'marginBottom': '1.5rem'}),
         
         html.Div([
-            dcc.Graph(figure=radar_chart, config={'displayModeBar': False})
-        ], className="modern-chart-container", style={'marginBottom': '3rem'}),
+            dcc.Graph(figure=radar_chart, config={'displayModeBar': False, 'responsive': True})
+        ], className="modern-chart-container", style={'marginBottom': '2.5rem'}),
         
         # Confrontations directes
         html.Div([
-            html.H3("🏆 Confrontations directes", className="chart-title", style={'marginBottom': '1.5rem'}),
+            html.H3("🏆 Confrontations directes", className="chart-title"),
             html.Div([
                 html.Div([
                     create_modern_h2h_row(match, club1, club2) for match in head_to_head
                 ] if head_to_head else [
-                    html.P(
-                        "Ces deux clubs ne se sont pas encore affrontés dans notre base de données.",
-                        style={'color': '#718096', 'textAlign': 'center', 'padding': '3rem', 'fontSize': '1.1rem'}
-                    )
+                    html.Div([
+                        html.Div("🏃", style={'fontSize': '3rem', 'marginBottom': '1rem'}),
+                        html.P(
+                            "Ces deux clubs ne se sont pas encore affrontés dans notre base de données.",
+                            style={'color': '#64748b', 'textAlign': 'center', 'fontSize': '1.05rem', 'maxWidth': '400px', 'margin': '0 auto'}
+                        )
+                    ], style={'textAlign': 'center', 'padding': '3rem'})
                 ])
-            ], style={'background': 'white', 'borderRadius': '15px', 'padding': '2rem', 'boxShadow': '0 4px 6px rgba(0,0,0,0.07)'})
-        ], style={'marginBottom': '2rem'})
+            ])
+        ], className="modern-chart-container", style={'marginBottom': '2rem'})
     ])
 
 
-def create_modern_stat_card(icon, title, value1, value2):
+def create_compare_stat_card(icon, title, value1, value2, lower_is_better=False):
     """Crée une carte de statistique comparative moderne."""
-    # Déterminer quel club a le meilleur résultat
     try:
         val1_num = float(str(value1).replace('%', '').replace('+', ''))
         val2_num = float(str(value2).replace('%', '').replace('+', ''))
-        better1 = val1_num > val2_num
-        better2 = val2_num > val1_num
-    except:
+        if lower_is_better:
+            better1 = val1_num < val2_num
+            better2 = val2_num < val1_num
+        else:
+            better1 = val1_num > val2_num
+            better2 = val2_num > val1_num
+    except Exception:
         better1 = better2 = False
-    
+
     return html.Div([
-        html.Div(icon, style={'fontSize': '2.5rem', 'marginBottom': '1rem', 'textAlign': 'center'}),
-        html.Div(title, className="stat-label", style={'textAlign': 'center', 'marginBottom': '1rem'}),
+        html.Div(icon, className="stat-compare-icon"),
+        html.Div(title, className="stat-compare-label"),
         html.Div([
-            html.Div([
-                html.Div(
-                    str(value1),
-                    style={
-                        'fontSize': '2rem',
-                        'fontWeight': '700',
-                        'color': '#2563eb' if better1 else '#2d3748'
-                    }
-                )
-            ], style={'textAlign': 'center', 'flex': '1'}),
             html.Div(
-                "vs",
-                style={'fontSize': '1rem', 'color': '#a0aec0', 'padding': '0 1rem'}
+                str(value1),
+                className=f"stat-compare-val {'better' if better1 else 'normal'}"
             ),
-            html.Div([
-                html.Div(
-                    str(value2),
-                    style={
-                        'fontSize': '2rem',
-                        'fontWeight': '700',
-                        'color': '#2563eb' if better2 else '#2d3748'
-                    }
-                )
-            ], style={'textAlign': 'center', 'flex': '1'})
-        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'})
-    ], className="stat-item", style={'padding': '2rem', 'background': 'white', 'borderRadius': '15px', 'boxShadow': '0 4px 6px rgba(0,0,0,0.07)', 'transition': 'all 0.3s ease'})
+            html.Div("vs", className="stat-compare-vs"),
+            html.Div(
+                str(value2),
+                className=f"stat-compare-val {'better' if better2 else 'normal'}"
+            )
+        ], className="stat-compare-values")
+    ], className="stat-compare-card")
 
 
 def create_modern_h2h_row(match, club1, club2):
@@ -429,13 +431,27 @@ def create_modern_h2h_row(match, club1, club2):
         form_letter = "N"
     
     return html.Div([
-        html.Span(form_letter, className=f"form-indicator {form_class}"),
-        html.Span(home, style={'fontWeight': '600', 'flex': '1', 'color': '#2d3748'}),
+        html.Span(form_letter, className=f"form-indicator {form_class}",
+                  style={'width': '36px', 'height': '36px', 'fontSize': '0.85rem', 'flexShrink': '0'}),
+        html.Span(home, style={
+            'fontWeight': '600', 'flex': '1', 'color': '#0f172a', 'fontSize': '0.95rem',
+            'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap', 'minWidth': '0'
+        }),
         html.Div([
-            html.Span(str(home_score), style={'fontSize': '1.2rem', 'fontWeight': '700', 'padding': '0.5rem 1rem', 'background': '#2563eb', 'color': 'white', 'borderRadius': '8px'}),
-            html.Span("-", style={'margin': '0 0.5rem', 'color': '#a0aec0'}),
-            html.Span(str(away_score), style={'fontSize': '1.2rem', 'fontWeight': '700', 'padding': '0.5rem 1rem', 'background': '#2563eb', 'color': 'white', 'borderRadius': '8px'})
-        ], style={'display': 'flex', 'alignItems': 'center'}),
-        html.Span(away, style={'fontWeight': '600', 'flex': '1', 'textAlign': 'right', 'color': '#2d3748'}),
-        html.Span(f"({league})", style={'color': '#a0aec0', 'fontSize': '0.85rem', 'marginLeft': '1rem'})
-    ], style={'display': 'flex', 'alignItems': 'center', 'gap': '1rem', 'padding': '1rem', 'borderBottom': '1px solid #e2e8f0', 'transition': 'all 0.2s ease'}, className="match-row-hover")
+            html.Span(str(home_score), className="score-bubble"),
+            html.Span("–", style={'margin': '0 0.3rem', 'color': '#94a3b8', 'fontWeight': '600'}),
+            html.Span(str(away_score), className="score-bubble")
+        ], style={'display': 'flex', 'alignItems': 'center', 'flexShrink': '0'}),
+        html.Span(away, style={
+            'fontWeight': '600', 'flex': '1', 'textAlign': 'right', 'color': '#0f172a', 'fontSize': '0.95rem',
+            'overflow': 'hidden', 'textOverflow': 'ellipsis', 'whiteSpace': 'nowrap', 'minWidth': '0'
+        }),
+        html.Span(
+            league,
+            style={
+                'color': '#64748b', 'fontSize': '0.75rem', 'flexShrink': '0',
+                'padding': '0.2rem 0.6rem', 'background': '#f1f5f9',
+                'borderRadius': '9999px', 'whiteSpace': 'nowrap', 'fontWeight': '500'
+            }
+        )
+    ], className="detail-match-row")
