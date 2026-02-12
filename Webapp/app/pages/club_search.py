@@ -1,7 +1,6 @@
 """
 Page de recherche de clubs avec Elasticsearch
 """
-import dash
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from components.navbar import create_navbar
@@ -93,7 +92,7 @@ def layout():
     State("club-search-input", "value"),
     prevent_initial_call=True
 )
-def search_clubs(n_clicks, n_submit, search_query):
+def search_clubs(_n_clicks, _n_submit, search_query):
     """Recherche des clubs et affiche les résultats."""
     if not search_query or not search_query.strip():
         return dbc.Alert(
@@ -136,15 +135,6 @@ def search_clubs(n_clicks, n_submit, search_query):
         # Créer les badges pour la forme récente
         form_badges = []
         for result in recent_form:
-            if result == 'W':
-                color = 'success'
-                symbol = '✓'
-            elif result == 'D':
-                color = 'warning'
-                symbol = '='
-            else:
-                color = 'danger'
-                symbol = '✗'
             form_badges.append(
                 html.Span(
                     result,

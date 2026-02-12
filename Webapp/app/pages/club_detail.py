@@ -1,7 +1,6 @@
 """
 Page de détail d'un club avec statistiques et graphiques
 """
-import dash
 from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
@@ -168,7 +167,7 @@ def display_club_detail(search):
     # 3. Line chart forme récente (derniers 20 matchs)
     form_data = []
     form_labels = []
-    for i, match in enumerate(matches_history[::-1]):  # Du plus ancien au plus récent
+    for match in matches_history[::-1]:  # Du plus ancien au plus récent
         home = match.get('home')
         away = match.get('away')
         home_score = match.get('home_score')

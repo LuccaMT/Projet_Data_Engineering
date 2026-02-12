@@ -5,9 +5,7 @@ Two pipelines are provided:
 - `MongoDBBulkPipeline`: batch writing (faster)
 """
 
-import os
 from datetime import datetime
-from typing import Any
 
 from pymongo import MongoClient, UpdateOne
 from pymongo.errors import BulkWriteError

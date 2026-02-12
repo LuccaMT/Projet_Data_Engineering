@@ -2,7 +2,6 @@
 
 from dash import html, dcc, callback, Input, Output
 import os
-from typing import Any, Dict, Optional, Tuple
 from pymongo import MongoClient
 
 def get_initialization_status():
@@ -56,7 +55,7 @@ def layout():
     Output("loading-interval", "disabled"),
     Input("loading-interval", "n_intervals")
 )
-def update_loading_status(n):
+def update_loading_status(_n):
     """Update the loading UI based on the initialization document.
 
     Args:

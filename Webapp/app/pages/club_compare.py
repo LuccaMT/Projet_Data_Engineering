@@ -1,7 +1,6 @@
 """
 Page de comparaison entre deux clubs avec graphiques
 """
-import dash
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
@@ -125,7 +124,6 @@ def layout():
 )
 def display_comparison(search, n_clicks, club1_input, club2_input):
     """Affiche la comparaison entre deux clubs."""
-    ctx = dash.callback_context
     
     # Si l'URL contient des paramètres, les utiliser
     club1 = club1_input
@@ -362,7 +360,7 @@ def display_comparison(search, n_clicks, club1_input, club2_input):
             html.H3("🏆 Confrontations directes", className="chart-title"),
             html.Div([
                 html.Div([
-                    create_modern_h2h_row(match, club1, club2) for match in head_to_head
+                    create_modern_h2h_row(match, club1) for match in head_to_head
                 ] if head_to_head else [
                     html.Div([
                         html.Div("🏃", style={'fontSize': '3rem', 'marginBottom': '1rem'}),
@@ -408,7 +406,7 @@ def create_compare_stat_card(icon, title, value1, value2, lower_is_better=False)
     ], className="stat-compare-card")
 
 
-def create_modern_h2h_row(match, club1, club2):
+def create_modern_h2h_row(match, club1):
     """Crée une ligne moderne pour afficher une confrontation directe."""
     home = match.get('home')
     away = match.get('away')

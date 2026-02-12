@@ -2,20 +2,18 @@ import argparse
 import os
 from dataclasses import asdict
 from datetime import date, timedelta
-from typing import Iterable, List, Tuple
+from typing import Iterable, Tuple
 
 import scrapy
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
 import sys
-import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from flashscore_feed import (
     FEED_URL,
     REQUEST_HEADERS,
-    Match,
     _date_to_offset,
     daterange,
     parse_feed,
@@ -115,14 +113,6 @@ def resolve_range(args: argparse.Namespace) -> Tuple[date, date, str]:
         label = f"{start.isoformat()}_to_{end.isoformat()}"
         return start, end, label
 
-    if args.start_date or args.end_date:
-        start_str = args.start_date or args.end_date
-        end_str = args.end_date or args.start_date
-        start = date.fromisoformat(start_str)
-        end = date.fromisoformat(end_str)
-        label = f"{start.isoformat()}_to_{end.isoformat()}"
-        return start, end, label
-
     if args.date:
         target_day = date.fromisoformat(args.date)
         return target_day, target_day, target_day.isoformat()
@@ -194,7 +184,7 @@ def main() -> None:
         None
     """
     args = parse_args()
-    start, end, label = resolve_range(args)
+    start, end, _label = resolve_range(args)
     dates = list(daterange(start, end))
 
     settings = get_project_settings()

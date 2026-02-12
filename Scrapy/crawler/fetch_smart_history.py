@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 from flashscore_feed import (
     FEED_URL,
     REQUEST_HEADERS,
-    Match,
     _date_to_offset,
     parse_feed,
 )

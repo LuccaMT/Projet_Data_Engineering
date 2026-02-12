@@ -14,10 +14,9 @@ The Flashscore data format uses special separators:
 """
 
 # Standard library
-import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Dict, Generator, List, Optional
+from typing import Dict, Generator, Optional
 
 # Third-party
 import requests
@@ -36,7 +35,9 @@ KV_SEPARATOR = "\xf7"
 #  - sport_id is 1 for football
 #  - offset corresponds to the day offset from today (e.g., 0 = today, 1 = tomorrow, -1 = yesterday)
 #  - variant can be left at 0; other variants only change order/visibility
-FEED_URL = "https://d.flashscore.com/x/feed/f_{sport_id}_{offset}_{variant}_fr_1"
+#  - Flashscore migrated feeds from d.flashscore.com to global.flashscore.ninja
+#    (project id 16 for flashscore.fr).
+FEED_URL = "https://global.flashscore.ninja/16/x/feed/f_{sport_id}_{offset}_{variant}_fr_1"
 
 REQUEST_HEADERS = {
     "User-Agent": "ProjetDataEngBot/0.1 (+contact)",

@@ -1,6 +1,6 @@
-"""
+﻿"""
 Service d'indexation automatique des clubs dans Elasticsearch
-Lance au démarrage du webapp et met à jour le statut dans MongoDB
+Lance au dÃ©marrage du webapp et met Ã  jour le statut dans MongoDB
 """
 import os
 import time
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class AutoClubIndexer:
-    """Indexe automatiquement les clubs au démarrage"""
+    """Indexe automatiquement les clubs au dÃ©marrage"""
     
     def __init__(self):
         # Connexion MongoDB
@@ -30,7 +30,7 @@ class AutoClubIndexer:
         self.index_name = "clubs"
     
     def update_status(self, status: str, progress: int, message: str = ""):
-        """Met à jour le statut de l'indexation dans MongoDB"""
+        """Met Ã  jour le statut de l'indexation dans MongoDB"""
         try:
             self.db.initialization_status.update_one(
                 {},
@@ -45,26 +45,26 @@ class AutoClubIndexer:
             )
             logger.info(f"Elasticsearch indexing: {status} - {progress}% - {message}")
         except Exception as e:
-            logger.error(f"Erreur mise à jour statut: {e}")
+            logger.error(f"Erreur mise Ã  jour statut: {e}")
     
     def check_if_already_indexed(self) -> bool:
-        """Vérifie si l'indexation a déjà été faite"""
+        """VÃ©rifie si l'indexation a dÃ©jÃ  Ã©tÃ© faite"""
         try:
             if not self.es.indices.exists(index=self.index_name):
                 return False
             
-            # Vérifier s'il y a des documents
+            # VÃ©rifier s'il y a des documents
             count = self.es.count(index=self.index_name)
             doc_count = count.get('count', 0)
             
             logger.info(f"Index existe avec {doc_count} clubs")
             return doc_count > 0
         except Exception as e:
-            logger.error(f"Erreur vérification index: {e}")
+            logger.error(f"Erreur vÃ©rification index: {e}")
             return False
     
     def wait_for_services(self):
-        """Attend que MongoDB et Elasticsearch soient prêts"""
+        """Attend que MongoDB et Elasticsearch soient prÃªts"""
         max_retries = 60
         retry_delay = 3
         
@@ -72,11 +72,11 @@ class AutoClubIndexer:
         for i in range(max_retries):
             try:
                 self.mongo_client.admin.command('ping')
-                logger.info("✅ MongoDB prêt")
+                logger.info("âœ… MongoDB prÃªt")
                 break
-            except Exception as e:
+            except Exception:
                 if i == max_retries - 1:
-                    logger.error(f"MongoDB non disponible après {max_retries} tentatives")
+                    logger.error(f"MongoDB non disponible aprÃ¨s {max_retries} tentatives")
                     return False
                 if i % 10 == 0:
                     logger.info(f"Attente MongoDB... ({i+1}/{max_retries})")
@@ -86,11 +86,11 @@ class AutoClubIndexer:
         for i in range(max_retries):
             try:
                 if self.es.ping():
-                    logger.info("✅ Elasticsearch prêt")
+                    logger.info("âœ… Elasticsearch prÃªt")
                     return True
-            except Exception as e:
+            except Exception:
                 if i == max_retries - 1:
-                    logger.error(f"Elasticsearch non disponible après {max_retries} tentatives")
+                    logger.error(f"Elasticsearch non disponible aprÃ¨s {max_retries} tentatives")
                     return False
                 if i % 10 == 0:
                     logger.info(f"Attente Elasticsearch... ({i+1}/{max_retries})")
@@ -99,10 +99,10 @@ class AutoClubIndexer:
         return False
     
     def create_index(self):
-        """Crée l'index Elasticsearch"""
+        """CrÃ©e l'index Elasticsearch"""
         try:
             if self.es.indices.exists(index=self.index_name):
-                logger.info(f"Index {self.index_name} existe déjà")
+                logger.info(f"Index {self.index_name} existe dÃ©jÃ ")
                 return True
             
             mappings = {
@@ -131,18 +131,18 @@ class AutoClubIndexer:
             }
             
             self.es.indices.create(index=self.index_name, body=mappings)
-            logger.info(f"✅ Index {self.index_name} créé")
+            logger.info(f"âœ… Index {self.index_name} crÃ©Ã©")
             return True
         except Exception as e:
-            logger.error(f"Erreur création index: {e}")
+            logger.error(f"Erreur crÃ©ation index: {e}")
             return False
     
     def aggregate_and_index_clubs(self):
-        """Agrège et indexe tous les clubs"""
+        """AgrÃ¨ge et indexe tous les clubs"""
         try:
-            self.update_status("in_progress", 10, "Récupération des matchs...")
+            self.update_status("in_progress", 10, "RÃ©cupÃ©ration des matchs...")
             
-            # Calculer la date de début de la saison actuelle (1er août)
+            # Calculer la date de dÃ©but de la saison actuelle (1er aoÃ»t)
             from datetime import datetime
             current_date = datetime.now()
             if current_date.month >= 8:
@@ -165,7 +165,7 @@ class AutoClubIndexer:
                 'matches': []
             })
             
-            # Récupérer uniquement les matchs de la saison en cours
+            # RÃ©cupÃ©rer uniquement les matchs de la saison en cours
             matches = list(self.db.matches_finished.find({
                 "status_code": {"$in": [100, "100"]},
                 "home_score": {"$exists": True, "$ne": None},
@@ -174,7 +174,7 @@ class AutoClubIndexer:
             }))
             
             total_matches = len(matches)
-            logger.info(f"📊 {total_matches} matchs à traiter")
+            logger.info(f"ðŸ“Š {total_matches} matchs Ã  traiter")
             
             self.update_status("in_progress", 30, f"Traitement de {total_matches} matchs...")
             
@@ -191,7 +191,7 @@ class AutoClubIndexer:
                 if not all([home, away, home_score is not None, away_score is not None]):
                     continue
                 
-                # Mise à jour stats équipe domicile
+                # Mise Ã  jour stats Ã©quipe domicile
                 clubs[home]['name'] = home
                 clubs[home]['logo'] = home_logo
                 clubs[home]['leagues'].add(league)
@@ -206,7 +206,7 @@ class AutoClubIndexer:
                 else:
                     clubs[home]['losses'] += 1
                 
-                # Mise à jour stats équipe extérieur
+                # Mise Ã  jour stats Ã©quipe extÃ©rieur
                 clubs[away]['name'] = away
                 clubs[away]['logo'] = away_logo
                 clubs[away]['leagues'].add(league)
@@ -251,33 +251,33 @@ class AutoClubIndexer:
                     self.es.index(index=self.index_name, id=club_name, body=doc)
                     indexed_count += 1
                     
-                    # Mise à jour progressive
+                    # Mise Ã  jour progressive
                     if indexed_count % 100 == 0:
                         progress = 60 + int((indexed_count / len(clubs)) * 35)
-                        self.update_status("in_progress", progress, f"Indexé {indexed_count}/{len(clubs)} clubs")
+                        self.update_status("in_progress", progress, f"IndexÃ© {indexed_count}/{len(clubs)} clubs")
                 
                 except Exception as e:
                     logger.error(f"Erreur indexation club {club_name}: {e}")
             
-            logger.info(f"✅ {indexed_count} clubs indexés avec succès")
-            self.update_status("completed", 100, f"✅ {indexed_count} clubs indexés")
+            logger.info(f"âœ… {indexed_count} clubs indexÃ©s avec succÃ¨s")
+            self.update_status("completed", 100, f"âœ… {indexed_count} clubs indexÃ©s")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erreur indexation: {e}")
+            logger.error(f"âŒ Erreur indexation: {e}")
             self.update_status("error", 0, f"Erreur: {str(e)}")
             return False
     
     def run(self):
-        """Lance l'indexation complète"""
+        """Lance l'indexation complÃ¨te"""
         try:
-            logger.info("🚀 Démarrage indexation Elasticsearch...")
-            self.update_status("in_progress", 0, "Démarrage de l'indexation...")
+            logger.info("ðŸš€ DÃ©marrage indexation Elasticsearch...")
+            self.update_status("in_progress", 0, "DÃ©marrage de l'indexation...")
             
-            # Vérifier si déjà indexé
+            # VÃ©rifier si dÃ©jÃ  indexÃ©
             if self.check_if_already_indexed():
-                logger.info("✅ Clubs déjà indexés, skip")
-                self.update_status("completed", 100, "✅ Clubs déjà indexés")
+                logger.info("âœ… Clubs dÃ©jÃ  indexÃ©s, skip")
+                self.update_status("completed", 100, "âœ… Clubs dÃ©jÃ  indexÃ©s")
                 return True
             
             # Attendre les services
@@ -286,17 +286,17 @@ class AutoClubIndexer:
                 self.update_status("error", 0, "Services non disponibles")
                 return False
             
-            # Créer l'index
-            self.update_status("in_progress", 8, "Création de l'index...")
+            # CrÃ©er l'index
+            self.update_status("in_progress", 8, "CrÃ©ation de l'index...")
             if not self.create_index():
-                self.update_status("error", 0, "Erreur création index")
+                self.update_status("error", 0, "Erreur crÃ©ation index")
                 return False
             
             # Indexer les clubs
             return self.aggregate_and_index_clubs()
             
         except Exception as e:
-            logger.error(f"❌ Erreur fatale: {e}")
+            logger.error(f"âŒ Erreur fatale: {e}")
             self.update_status("error", 0, str(e))
             return False
         finally:
@@ -304,18 +304,18 @@ class AutoClubIndexer:
 
 
 def start_indexing_in_background():
-    """Lance l'indexation dans un thread séparé et surveille les triggers"""
+    """Lance l'indexation dans un thread sÃ©parÃ© et surveille les triggers"""
     def run_indexer():
-        # Attendre que le webapp et les services démarrent
-        logger.info("⏳ Attente de 15 secondes avant indexation...")
+        # Attendre que le webapp et les services dÃ©marrent
+        logger.info("â³ Attente de 15 secondes avant indexation...")
         time.sleep(15)
         
-        # Premier lancement au démarrage
+        # Premier lancement au dÃ©marrage
         indexer = AutoClubIndexer()
         indexer.run()
         
-        # Surveiller les triggers pour réindexer si demandé
-        logger.info("👀 Surveillance des triggers d'indexation...")
+        # Surveiller les triggers pour rÃ©indexer si demandÃ©
+        logger.info("ðŸ‘€ Surveillance des triggers d'indexation...")
         mongo_uri = os.getenv('MONGO_URI', 'mongodb://admin:admin123@mongodb:27017/')
         client = MongoClient(mongo_uri)
         db = client["flashscore"]
@@ -327,9 +327,9 @@ def start_indexing_in_background():
                 if status_doc and status_doc.get("elasticsearch_trigger"):
                     trigger_time = status_doc.get("elasticsearch_trigger_time", 0)
                     
-                    # Nouveau trigger détecté
+                    # Nouveau trigger dÃ©tectÃ©
                     if trigger_time > last_trigger_time:
-                        logger.info("🔔 Nouveau trigger d'indexation détecté!")
+                        logger.info("ðŸ”” Nouveau trigger d'indexation dÃ©tectÃ©!")
                         last_trigger_time = trigger_time
                         
                         # Supprimer le trigger
@@ -342,7 +342,7 @@ def start_indexing_in_background():
                         indexer_new = AutoClubIndexer()
                         indexer_new.run()
                 
-                # Attendre 10 secondes avant de revérifier
+                # Attendre 10 secondes avant de revÃ©rifier
                 time.sleep(10)
             except Exception as e:
                 logger.error(f"Erreur surveillance triggers: {e}")
@@ -350,7 +350,7 @@ def start_indexing_in_background():
     
     thread = threading.Thread(target=run_indexer, daemon=True)
     thread.start()
-    logger.info("🔄 Thread d'indexation Elasticsearch lancé")
+    logger.info("ðŸ”„ Thread d'indexation Elasticsearch lancÃ©")
 
 
 if __name__ == "__main__":

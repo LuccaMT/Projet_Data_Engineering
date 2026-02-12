@@ -35,7 +35,7 @@ def get_flashscore_countries() -> List[str]:
         List[str]: Pays distincts détectés via le préfixe "PAYS: Ligue".
     """
     db = get_db_connection()
-    leagues = db.get_all_leagues()
+    leagues = [league for league in db.get_all_leagues() if not is_cup(league)]
     
     countries = set()
     for league in leagues:
@@ -436,10 +436,11 @@ def update_leagues_list(search_value, selected_country):
     """Met à jour les options de pays, options de recherche et cartes de ligues affichées."""
     print(f"[DEBUG] Recherche: {search_value}, Pays: {selected_country}")
     
-    # Récupérer toutes les ligues et exclure les coupes
-    all_leagues = get_all_leagues()
-    # Filtrer pour exclure les coupes (Champions League, Europa League, etc.)
-    all_leagues = [league for league in all_leagues if not is_cup(league)]
+    # La page Ligues n'affiche que les championnats (les coupes restent sur /cups)
+    all_leagues = [league for league in get_all_leagues() if not is_cup(league)]
+    
+    print(f"[DEBUG] Total ligues (hors coupes): {len(all_leagues)}")
+    
     sorted_leagues = sort_leagues_by_prestige(all_leagues)
     all_countries = get_flashscore_countries()
     
@@ -559,7 +560,7 @@ def update_leagues_list(search_value, selected_country):
                     },
                     children=[
                         html.H3(
-                            "📅 Autres Championnats & Coupes",
+                            "🏆 Autres Championnats",
                             style={
                                 "margin": "0",
                                 "fontSize": "20px",
@@ -568,7 +569,7 @@ def update_leagues_list(search_value, selected_country):
                             },
                         ),
                         html.P(
-                            f"Matchs proches : J à J+7 • {len(other_leagues)} ligue(s)",
+                            f"{len(other_leagues)} championnat(s)",
                             style={
                                 "margin": "4px 0 0 0",
                                 "fontSize": "14px",

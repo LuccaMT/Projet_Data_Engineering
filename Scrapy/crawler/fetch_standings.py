@@ -11,7 +11,7 @@ import re
 import sys
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -70,9 +70,7 @@ def scrape_standings(url: str, league_name: Optional[str] = None) -> Optional[Di
         print("   ⏳ Chargement...")
         wait = WebDriverWait(driver, 15)
         
-        table_container = wait.until(
-            EC.presence_of_element_located((By.ID, "tournament-table"))
-        )
+        wait.until(EC.presence_of_element_located((By.ID, "tournament-table")))
         
         time.sleep(2)
         
@@ -242,7 +240,7 @@ def save_to_mongodb(standings_data: Dict, mongo_uri: str, mongo_db: str) -> bool
         collection.create_index([("league_name", 1)], unique=True)
         
         # Upsert
-        result = collection.update_one(
+        collection.update_one(
             {"league_name": standings_data["league_name"]},
             {"$set": standings_data},
             upsert=True

@@ -1,0 +1,326 @@
+/* ========================================
+   BRACKET STYLES - Modern Tournament Display
+   ======================================== */
+
+/* Bracket full-width container */
+.bracket-full-width-container {
+    width: 100%;
+    padding: 24px 0;
+}
+
+/* Brackets container wrapper */
+.brackets-viewer-wrapper {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e2e8f0;
+}
+
+.bracket-header {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 3px solid #e2e8f0;
+    text-align: center;
+}
+
+.bracket-header h3 {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1e3a8a;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+}
+
+/* Empty bracket message */
+.empty-bracket-message {
+    text-align: center;
+    padding: 60px 20px;
+    background-color: #f8fafc;
+    border-radius: 12px;
+}
+
+/* Bracket container */
+.brackets-container {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.brackets-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.brackets-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.brackets-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.brackets-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Match card hover effect */
+.bracket-match-card:hover {
+    border-color: #667eea !important;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Navigation buttons */
+.bracket-nav-btn:hover {
+    background-color: #5568d3 !important;
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4) !important;
+    transform: translateY(-1px);
+}
+
+.bracket-nav-btn:active {
+    transform: translateY(0);
+}
+
+.bracket-nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Override brackets-viewer library styles for modern look */
+.brackets-viewer {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 400px;
+    width: 100%;
+    overflow-x: auto;
+    padding: 20px 0;
+}
+
+/* Ensure bracket content is visible */
+.brackets-viewer * {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.brackets-viewer .round {
+    margin: 0 20px;
+}
+
+.brackets-viewer .round-title {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.3);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.brackets-viewer .match {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    margin: 12px 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.brackets-viewer .match:hover {
+    border-color: #667eea;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+    transform: translateY(-2px);
+}
+
+.brackets-viewer .match-participant {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s ease;
+}
+
+.brackets-viewer .match-participant:first-child {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.brackets-viewer .match-participant:hover {
+    background-color: #f8fafc;
+}
+
+.brackets-viewer .match-participant.winner {
+    background: linear-gradient(90deg, #ecfdf5 0%, #d1fae5 100%);
+    font-weight: 700;
+}
+
+.brackets-viewer .participant-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e293b;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.brackets-viewer .match-participant.winner .participant-name {
+    color: #059669;
+}
+
+.brackets-viewer .participant-score {
+    font-weight: 800;
+    font-size: 16px;
+    color: #64748b;
+    min-width: 32px;
+    text-align: center;
+    margin-left: 12px;
+    padding: 4px 8px;
+    background-color: #f1f5f9;
+    border-radius: 6px;
+}
+
+.brackets-viewer .match-participant.winner .participant-score {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+/* Connector lines styling */
+.brackets-viewer .connector {
+    stroke: #cbd5e1;
+    stroke-width: 2;
+}
+
+.brackets-viewer .connector-horizontal {
+    stroke: #cbd5e1;
+    stroke-width: 2;
+}
+
+.brackets-viewer .connector-vertical {
+    stroke: #cbd5e1;
+    stroke-width: 2;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .brackets-viewer-wrapper {
+        padding: 24px;
+    }
+    
+    .brackets-viewer .round {
+        margin: 0 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .bracket-full-width-container {
+        padding: 16px 0;
+    }
+    
+    .brackets-viewer-wrapper {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    
+    .bracket-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+    }
+    
+    .bracket-header h3 {
+        font-size: 22px !important;
+    }
+    
+    .brackets-viewer .round-title {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    
+    .brackets-viewer .match-participant {
+        padding: 10px 12px;
+    }
+    
+    .brackets-viewer .participant-name {
+        font-size: 13px;
+    }
+    
+    .brackets-viewer .participant-score {
+        font-size: 14px;
+        min-width: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .brackets-viewer-wrapper {
+        padding: 12px;
+    }
+    
+    .bracket-header h3 {
+        font-size: 18px !important;
+    }
+    
+    .brackets-viewer .match {
+        margin: 8px 0;
+    }
+    
+    .brackets-viewer .participant-name {
+        font-size: 12px;
+    }
+    
+    .brackets-viewer .participant-score {
+        font-size: 13px;
+        padding: 3px 6px;
+    }
+}
+
+/* Custom scrollbar for bracket container */
+.brackets-viewer-wrapper::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.brackets-viewer-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.brackets-viewer-wrapper::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+.brackets-viewer-wrapper::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #5568d3 0%, #65408d 100%);
+}
+
+/* TBD styling for undecided matches */
+.brackets-viewer .match-participant.tbd {
+    opacity: 0.5;
+}
+
+.brackets-viewer .match-participant.tbd .participant-name {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Finals special styling */
+.brackets-viewer .round:last-child .round-title {
+    background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    font-size: 15px;
+    padding: 12px 18px;
+}
+
+.brackets-viewer .round:last-child .match {
+    border: 3px solid #fbbf24;
+    box-shadow: 0 8px 20px rgba(251, 191, 36, 0.3);
+}
+
+.brackets-viewer .round:last-child .match:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(251, 191, 36, 0.4);
+}

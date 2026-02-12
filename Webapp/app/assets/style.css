@@ -1,6 +1,12 @@
 /* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+/* Import Club Styles */
+@import url('club_styles.css');
+
+/* Import Brackets Styles */
+@import url('brackets_styles.css');
+
 /* Reset et base */
 * {
     margin: 0;

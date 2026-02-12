@@ -1,4 +1,4 @@
-"""Scrape full-season matches for Top 5 leagues from Flashscore.
+﻿"""Scrape full-season matches for Top 5 leagues from Flashscore.
 
 This script loads both the fixtures (upcoming) and results (finished) pages for
 each league and stores matches into MongoDB.
@@ -111,7 +111,7 @@ def click_show_more(driver) -> int:
             if current_count == previous_count and clicked > 0:
                 no_change_count += 1
                 if no_change_count >= 3:
-                    log(f"  ℹ️ Aucun nouveau match après 3 tentatives, arrêt")
+                    log(f"  â„¹ï¸ Aucun nouveau match aprÃ¨s 3 tentatives, arrÃªt")
                     break
             else:
                 no_change_count = 0
@@ -133,12 +133,12 @@ def click_show_more(driver) -> int:
             clicked += 1
             
             if clicked % 10 == 0:
-                log(f"  ⏳ {clicked} clics, {current_count} matchs affichés...")
+                log(f"  â³ {clicked} clics, {current_count} matchs affichÃ©s...")
             
             time.sleep(1.5)
-        except Exception as e:
+        except Exception:
             if clicked > 0:
-                log(f"  ℹ️ Fin des clics après {clicked} tentatives")
+                log(f"  â„¹ï¸ Fin des clics aprÃ¨s {clicked} tentatives")
             break
     
     return clicked
@@ -200,16 +200,16 @@ def scrape_matches_from_list(driver, url: str, league_name: str, match_type: str
         List of match documents.
     """
     log(f"\n{'='*60}")
-    log(f"🔍 {league_name} - {match_type.upper()}")
+    log(f"ðŸ” {league_name} - {match_type.upper()}")
     log(f"{'='*60}")
     
     driver.get(url)
     time.sleep(3)
     
-    log(f"📄 Page chargée: {url}")
+    log(f"ðŸ“„ Page chargÃ©e: {url}")
     
     clicks = click_show_more(driver)
-    log(f"🔄 {clicks} clics sur 'Afficher plus'")
+    log(f"ðŸ”„ {clicks} clics sur 'Afficher plus'")
     
     time.sleep(2)
     
@@ -217,7 +217,7 @@ def scrape_matches_from_list(driver, url: str, league_name: str, match_type: str
     
     try:
         match_elements = driver.find_elements(By.CSS_SELECTOR, "div.event__match[data-event-row='true']")
-        log(f"📊 {len(match_elements)} éléments de match trouvés")
+        log(f"ðŸ“Š {len(match_elements)} Ã©lÃ©ments de match trouvÃ©s")
         
         for i, match_elem in enumerate(match_elements, 1):
             try:
@@ -240,7 +240,7 @@ def scrape_matches_from_list(driver, url: str, league_name: str, match_type: str
                         pass
                 
                 if not match_id:
-                    log(f"  ⚠️ Match #{i}: ID non trouvé, ignoré")
+                    log(f"  âš ï¸ Match #{i}: ID non trouvÃ©, ignorÃ©")
                     continue
                 
                 time_elem = match_elem.find_element(By.CSS_SELECTOR, "div.event__time")
@@ -248,7 +248,7 @@ def scrape_matches_from_list(driver, url: str, league_name: str, match_type: str
                 target_date, start_timestamp = parse_date_from_list(date_text, is_upcoming=(match_type == "calendrier"))
                 
                 if not target_date:
-                    log(f"  ⚠️ Match #{i}: Date invalide, ignoré")
+                    log(f"  âš ï¸ Match #{i}: Date invalide, ignorÃ©")
                     continue
                 
                 home_elem = match_elem.find_element(By.CSS_SELECTOR, "div.event__homeParticipant span.wcl-name_jjfMf")
@@ -319,16 +319,16 @@ def scrape_matches_from_list(driver, url: str, league_name: str, match_type: str
                 matches.append(match_data)
                 
                 if i % 50 == 0:
-                    log(f"  ⏳ Traitement: {i}/{len(match_elements)} matchs...")
+                    log(f"  â³ Traitement: {i}/{len(match_elements)} matchs...")
                 
             except Exception as e:
-                log(f"  ⚠️ Erreur match #{i}: {e}")
+                log(f"  âš ï¸ Erreur match #{i}: {e}")
                 continue
         
-        log(f"✅ {len(matches)} matchs extraits")
+        log(f"âœ… {len(matches)} matchs extraits")
         
     except Exception as e:
-        log(f"❌ Erreur extraction: {e}")
+        log(f"âŒ Erreur extraction: {e}")
     
     return matches
 
@@ -341,7 +341,7 @@ def store_matches(matches: List[Dict], match_type: str) -> None:
         match_type: "calendrier" for upcoming, "resultats" for finished.
     """
     if not matches:
-        log("⚠️ Aucun match à stocker")
+        log("âš ï¸ Aucun match Ã  stocker")
         return
 
     mongo_uri = os.getenv('MONGO_URI', 'mongodb://admin:admin123@mongodb:27017/')
@@ -368,9 +368,9 @@ def store_matches(matches: List[Dict], match_type: str) -> None:
                 updated += 1
 
         except Exception as e:
-            log(f"❌ Erreur stockage {match.get('id', 'unknown')}: {e}")
+            log(f"âŒ Erreur stockage {match.get('id', 'unknown')}: {e}")
 
-    log(f"💾 Stockage: {inserted} ajouts, {updated} mises à jour")
+    log(f"ðŸ’¾ Stockage: {inserted} ajouts, {updated} mises Ã  jour")
     client.close()
 
 
@@ -382,7 +382,7 @@ def scrape_league_full_season(league_name: str, urls: Dict[str, str]) -> None:
         urls: Mapping containing keys "calendrier" and "resultats".
     """
     log(f"\n{'='*70}")
-    log(f"🏆 {league_name}")
+    log(f"ðŸ† {league_name}")
     log(f"{'='*70}")
     
     driver = create_chrome_driver()
@@ -408,16 +408,16 @@ def scrape_league_full_season(league_name: str, urls: Dict[str, str]) -> None:
         if finished_matches:
             store_matches(finished_matches, "resultats")
         
-        log(f"\n✅ {league_name}: {len(upcoming_matches)} à venir, {len(finished_matches)} terminés")
+        log(f"\nâœ… {league_name}: {len(upcoming_matches)} Ã  venir, {len(finished_matches)} terminÃ©s")
         
     finally:
         driver.quit()
 
 
 def main() -> None:
-    """Point d'entrée pour le scraping de saison complète."""
+    """Point d'entrÃ©e pour le scraping de saison complÃ¨te."""
     log("="*70)
-    log("🌟 SCRAPING TOP 5 LIGUES - SAISON COMPLÈTE")
+    log("ðŸŒŸ SCRAPING TOP 5 LIGUES - SAISON COMPLÃˆTE")
     log("="*70)
     
     start_time = time.time()
@@ -426,13 +426,14 @@ def main() -> None:
         try:
             scrape_league_full_season(league_name, urls)
         except Exception as e:
-            log(f"❌ Erreur {league_name}: {e}")
+            log(f"âŒ Erreur {league_name}: {e}")
     
     elapsed = time.time() - start_time
     log(f"\n{'='*70}")
-    log(f"✅ SCRAPING TERMINÉ en {elapsed:.1f}s")
+    log(f"âœ… SCRAPING TERMINÃ‰ en {elapsed:.1f}s")
     log(f"{'='*70}")
 
 if __name__ == "__main__":
     main()
+
 

@@ -1,4 +1,4 @@
-"""Page En Direct : tableau de bord + filtres pour les matchs."""
+﻿"""Page En Direct : tableau de bord + filtres pour les matchs."""
 
 import datetime
 import os
@@ -28,22 +28,6 @@ else:
 
 MIN_DATE = season_start
 MAX_DATE = season_end
-
-TOP_5_LEAGUES = [
-    "FRANCE: Ligue 1",
-    "SPAIN: LaLiga",
-    "ENGLAND: Premier League",
-    "GERMANY: Bundesliga",
-    "ITALY: Serie A",
-]
-
-LEAGUE_EMOJIS = {
-    "FRANCE: Ligue 1": "🇫🇷",
-    "SPAIN: LaLiga": "🇪🇸",
-    "ENGLAND: Premier League": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    "GERMANY: Bundesliga": "🇩🇪",
-    "ITALY: Serie A": "🇮🇹",
-}
 
 
 def load_matches_from_db(dataset_type: str, **kwargs) -> pd.DataFrame:
@@ -123,7 +107,7 @@ def get_today_stats(df: pd.DataFrame) -> dict:
     today_df = df[df.get('start_time_utc', pd.Series()).notna()]
     
     total = len(today_df)
-    live = len(today_df[today_df.get('status') == 'in_progress'])
+    live = len(today_df[today_df.get('status').isin(['in_progress', 'live'])])
     upcoming = len(today_df[today_df.get('status') == 'not_started'])
     finished = len(today_df[today_df.get('status') == 'finished'])
     
@@ -191,11 +175,12 @@ def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
             return "cancelled"
         return status or "unknown"
     
-    def fmt_status(status: str, status_code: str) -> str:
+    def fmt_status(status: str) -> str:
         """Mappe les valeurs de statut internes vers des labels français avec icônes."""
         status_map = {
             'not_started': '⏳ Programmé',
             'in_progress': '🔴 En cours',
+            'live': 'En cours',
             'finished': '✅ Terminé',
             'postponed': '⏸️ Reporté',
             'cancelled': '❌ Annulé',
@@ -210,7 +195,7 @@ def prepare_table(df: pd.DataFrame) -> tuple[list[dict], list[dict]]:
     df["kickoff"] = df.get("start_time_utc").apply(fmt_kickoff)
     df["score"] = df.apply(fmt_score, axis=1)
     df["status_norm"] = df.apply(normalize_status, axis=1)
-    df["status_fr"] = df.apply(lambda r: fmt_status(r.get("status_norm", ""), str(r.get("status_code", ""))), axis=1)
+    df["status_fr"] = df.apply(lambda r: fmt_status(r.get("status_norm", "")), axis=1)
 
     display_cols = [
         ("home_logo_md", ""),
@@ -563,17 +548,22 @@ def create_layout():
     Output("no-match-message", "style"),
     Output("no-match-details", "children"),
     Input("init-trigger", "data"),
-    State("dataset-type", "value"),
-    prevent_initial_call=False,
+        prevent_initial_call=False,
 )
-def load_initial_data(init_data, dataset_type):
+def load_initial_data(init_data):
     """Callback initial pour remplir le tableau et le panneau de statut."""
     if init_data and init_data.get("initialized"):
         raise PreventUpdate
     
     init_msg = initialize_data()
     
+    # Charger TOUS les matchs d'aujourd'hui (upcoming) pour avoir les matchs live
     df = load_matches_from_db("upcoming", target_date=today_str)
+    
+    # Filtrer pour ne garder que les matchs live et à venir d'aujourd'hui
+    if not df.empty:
+        # Garder les matchs live (in_progress) ou à venir (not_started) uniquement
+        df = df[df.get('status', pd.Series()).isin(['in_progress', 'not_started', 'live'])]
     
     stats = get_today_stats(df)
     
@@ -585,9 +575,10 @@ def load_initial_data(init_data, dataset_type):
         "",
         db_stats,
         "",
-        f"📊 Affichage: Matchs à venir",
-        f"📅 Date: Toutes",
+        f"🔴 Affichage: Matchs en direct & à venir",
+        f"📅 Date: Aujourd'hui ({today_str})",
         f"📈 Lignes affichées: {len(df)}",
+        f"⚡ Rafraîchissement automatique: toutes les 30s",
     ]
     
     columns, data = prepare_table(df)
@@ -619,7 +610,7 @@ def load_initial_data(init_data, dataset_type):
     State("init-trigger", "data"),
     prevent_initial_call=True,
 )
-def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league_filter: str, n_intervals: int, init_data):
+def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league_filter: str, _n_intervals: int, init_data):
     """Rafraîchit le tableau et les cartes quand les filtres changent ou l'intervalle tick."""
     if not init_data or not init_data.get("initialized"):
         raise PreventUpdate
@@ -629,8 +620,13 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league
     
     if dataset_type == "upcoming":
         filter_params = {"target_date": date_val}
-        date_display = f"📅 Date: {date_val}"
-        mode_label = "Matchs à venir"
+        # Si c'est aujourd'hui, afficher "En direct & Ã€ venir", sinon juste "Ã€ venir"
+        if date_val == today_str:
+            mode_label = "🔴 Matchs en direct & à venir"
+            date_display = f"📅 Aujourd'hui ({date_val})"
+        else:
+            mode_label = "Matchs à venir"
+            date_display = f"📅 Date: {date_val}"
         period_label = date_val
     else:
         if use_month_mode:
@@ -645,6 +641,10 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league
         mode_label = "Matchs terminés"
     
     df = load_matches_from_db(dataset_type, **filter_params)
+    
+    # Pour les matchs d'aujourd'hui (upcoming), filtrer pour ne garder que live + Ã  venir
+    if dataset_type == "upcoming" and date_val == today_str and not df.empty:
+        df = df[df.get('status', pd.Series()).isin(['in_progress', 'not_started', 'live'])]
     
     # Filtrer par ligue si nécessaire
     if league_filter and league_filter != "all" and not df.empty:
@@ -713,7 +713,7 @@ def fetch_and_display(dataset_type: str, date_val: str, month_mode: list, league
     Input("filter-italy", "n_clicks"),
     prevent_initial_call=True,
 )
-def update_league_filter(n_all, n_fr, n_es, n_en, n_de, n_it):
+def update_league_filter(_n_all, _n_fr, _n_es, _n_en, _n_de, _n_it):
     """Met à jour l'état du filtre de ligue quand un bouton de ligue est cliqué."""
     ctx = callback_context
     if not ctx.triggered:

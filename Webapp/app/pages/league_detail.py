@@ -527,7 +527,7 @@ def _render_form_badges(form: List[str]) -> html.Div:
 
 
 def _render_brackets(brackets_data: Dict) -> html.Div:
-    """Render cup brackets display using brackets-viewer library.
+    """Render cup brackets display using custom HTML with navigation.
 
     Args:
         brackets_data: Brackets document from MongoDB.
@@ -535,7 +535,6 @@ def _render_brackets(brackets_data: Dict) -> html.Div:
     Returns:
         Dash HTML container for the brackets display.
     """
-    import json
     
     rounds = brackets_data.get("rounds", [])
     
@@ -548,115 +547,132 @@ def _render_brackets(brackets_data: Dict) -> html.Div:
             ],
         )
     
-    # Transformer les données au format brackets-viewer
-    # Prendre les 4 derniers tours maximum
-    rounds_to_display = rounds[-4:] if len(rounds) > 4 else rounds
     
-    # Créer un dictionnaire de participants uniques
-    participants_dict = {}
-    participant_id = 0
+    # Créer tous les rounds (on les affichera tous avec navigation JS)
+    rounds_html = []
     
-    bracket_data = {
-        "stages": [{
-            "id": 0,
-            "tournament_id": 0,
-            "name": "Main Stage",
-            "type": "single_elimination",
-            "number": 1,
-            "settings": {
-                "size": len(rounds_to_display[0].get("matches", [])) if rounds_to_display else 8,
-                "seedOrdering": ["natural"],
-                "grandFinal": "simple"
-            }
-        }],
-        "groups": [{
-            "id": 0,
-            "stage_id": 0,
-            "number": 1
-        }],
-        "rounds": [],
-        "matches": [],
-        "participants": []
-    }
-    
-    # Collecter tous les participants uniques d'abord
-    for round_data in rounds_to_display:
-        matches = round_data.get("matches", [])[:8]
-        for match in matches:
-            for team_key in ["home", "away"]:
-                team = match.get(team_key, "TBD")
-                if team and team not in participants_dict:
-                    participants_dict[team] = participant_id
-                    bracket_data["participants"].append({
-                        "id": participant_id,
-                        "tournament_id": 0,
-                        "name": team if len(team) <= 20 else team[:17] + "..."
-                    })
-                    participant_id += 1
-    
-    match_id = 0
-    for round_idx, round_data in enumerate(rounds_to_display):
-        round_name = round_data.get("round_name", f"Round {round_idx + 1}")
+    for idx, round_data in enumerate(rounds):
+        round_name = round_data.get("round_name", "Round")
         matches = round_data.get("matches", [])
         
-        # Limiter à 8 matchs max par tour
-        matches_to_show = matches[:8]
-        
-        # Ajouter le round
-        bracket_data["rounds"].append({
-            "id": round_idx,
-            "stage_id": 0,
-            "group_id": 0,
-            "number": round_idx + 1
-        })
-        
-        # Ajouter les matchs
-        for match in matches_to_show:
+        # Créer les cartes de matchs pour ce round
+        match_cards = []
+        for match in matches:
             home = match.get("home", "TBD")
             away = match.get("away", "TBD")
             home_score = match.get("home_score")
             away_score = match.get("away_score")
             
-            bracket_data["matches"].append({
-                "id": match_id,
-                "stage_id": 0,
-                "group_id": 0,
-                "round_id": round_idx,
-                "number": match_id + 1,
-                "opponent1": {
-                    "id": participants_dict.get(home, 0),
-                    "score": home_score if home_score is not None else None
-                },
-                "opponent2": {
-                    "id": participants_dict.get(away, 0),
-                    "score": away_score if away_score is not None else None
+            # Déterminer le style du match
+            match_style = {
+                "backgroundColor": "#ffffff",
+                "border": "2px solid #e2e8f0",
+                "borderRadius": "12px",
+                "padding": "16px",
+                "marginBottom": "12px",
+                "transition": "all 0.3s ease"
+            }
+            
+            # Créer la carte du match
+            match_card = html.Div([
+                # Équipe domicile
+                html.Div([
+                    html.Span(home, style={"fontWeight": "600", "fontSize": "14px", "flex": "1"}),
+                    html.Span(
+                        str(home_score) if home_score is not None else "-",
+                        style={
+                            "backgroundColor": "#f1f5f9" if home_score is None else ("#10b981" if home_score is not None and away_score is not None and home_score > away_score else "#f1f5f9"),
+                            "color": "#ffffff" if home_score is not None and away_score is not None and home_score > away_score else "#64748b",
+                            "padding": "4px 12px",
+                            "borderRadius": "6px",
+                            "fontWeight": "700",
+                            "fontSize": "14px",
+                            "minWidth": "40px",
+                            "textAlign": "center"
+                        }
+                    )
+                ], style={"display": "flex", "alignItems": "center", "gap": "12px", "marginBottom": "8px"}),
+                
+                # Équipe extérieur
+                html.Div([
+                    html.Span(away, style={"fontWeight": "600", "fontSize": "14px", "flex": "1"}),
+                    html.Span(
+                        str(away_score) if away_score is not None else "-",
+                        style={
+                            "backgroundColor": "#f1f5f9" if away_score is None else ("#10b981" if home_score is not None and away_score is not None and away_score > home_score else "#f1f5f9"),
+                            "color": "#ffffff" if home_score is not None and away_score is not None and away_score > home_score else "#64748b",
+                            "padding": "4px 12px",
+                            "borderRadius": "6px",
+                            "fontWeight": "700",
+                            "fontSize": "14px",
+                            "minWidth": "40px",
+                            "textAlign": "center"
+                        }
+                    )
+                ], style={"display": "flex", "alignItems": "center", "gap": "12px"})
+            ], style=match_style, className="bracket-match-card")
+            
+            match_cards.append(match_card)
+        
+        # Créer la colonne du round
+        round_column = html.Div([
+            html.Div(
+                round_name,
+                style={
+                    "background": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    "color": "white",
+                    "padding": "12px 20px",
+                    "borderRadius": "10px",
+                    "fontWeight": "700",
+                    "fontSize": "13px",
+                    "textAlign": "center",
+                    "marginBottom": "16px",
+                    "boxShadow": "0 4px 6px -1px rgba(102, 126, 234, 0.3)",
+                    "letterSpacing": "0.5px",
+                    "textTransform": "uppercase"
                 }
-            })
-            match_id += 1
-    
-    bracket_json = json.dumps(bracket_data)
-    unique_id = f"bracket-{abs(hash(brackets_data.get('league', 'default')))}"
+            ),
+            html.Div(match_cards, style={"minWidth": "280px"})
+        ], 
+        style={
+            "flex": "0 0 auto",
+            "display": "flex",
+            "flexDirection": "column",
+            "padding": "0 16px"
+        },
+        className=f"bracket-round bracket-round-{idx}"
+        )
+        
+        rounds_html.append(round_column)
     
     return html.Div(
-        className="brackets-viewer-container",
+        className="bracket-full-width-container",
         children=[
             html.Div([
-                html.H3("🏆 Tableau à élimination", style={"marginBottom": "8px", "fontSize": "16px", "fontWeight": "700"}),
+                html.H3("🏆 Tableau à élimination", style={"marginBottom": "8px", "fontSize": "20px", "fontWeight": "700", "color": "#1e293b"}),
                 html.Div([
                     html.Span("📊 ", style={"fontSize": "14px"}),
-                    html.Span(f"{len(rounds)} tour(s) · {sum(len(r.get('matches', [])) for r in rounds)} matchs")
-                ], style={"fontSize": "12px", "color": "#64748b", "marginBottom": "16px"}),
+                    html.Span(f"{len(rounds)} tour(s) · {sum(len(r.get('matches', [])) for r in rounds)} matchs", style={"color": "#64748b", "fontSize": "14px"})
+                ], style={"marginBottom": "24px"}),
             ]),
             html.Div(
-                id=unique_id,
-                className="brackets-viewer",
-                **{"data-bracket": bracket_json}
+                rounds_html,
+                style={
+                    "display": "flex",
+                    "flexDirection": "row",
+                    "overflowX": "auto",
+                    "overflowY": "visible",
+                    "gap": "0px",
+                    "padding": "20px 0",
+                    "alignItems": "flex-start",
+                },
+                className="brackets-container"
             )
         ],
     )
 
 
-def _render_standings_column(league_name: Optional[str], standings_data: Optional[Dict], brackets_data: Optional[Dict]) -> html.Div:
+def _render_standings_column(league_name: Optional[str], standings_data: Optional[Dict], _brackets_data: Optional[Dict]) -> html.Div:
     """Render the right column (official standings table).
 
     Args:
@@ -675,13 +691,8 @@ def _render_standings_column(league_name: Optional[str], standings_data: Optiona
             ],
         )
     
-    # Pour les coupes, afficher un message approprié
+    # Pour les coupes, afficher un message approprié (les brackets sont affichés en pleine largeur)
     if is_cup(league_name):
-        # Si on a des données de brackets, les afficher
-        if brackets_data and brackets_data.get("rounds"):
-            return _render_brackets(brackets_data)
-        
-        # Sinon, afficher un message
         return html.Div(
             className="empty-card",
             style={
@@ -968,6 +979,7 @@ def create_layout() -> html.Div:
                             html.Div(id="league-standings-column", className="league-column"),
                         ],
                     ),
+                    html.Div(id="bracket-full-width", className="bracket-full-width-container"),
                 ],
             ),
         ],
@@ -999,36 +1011,57 @@ def render_navbar(search: Optional[str]):
 @callback(
     Output("league-columns-container", "style"),
     Output("league-standings-column", "style"),
+    Output("bracket-full-width", "style"),
     Input("url", "search"),
 )
 def adjust_columns_layout(search: Optional[str]):
     """Adjust the layout of columns based on whether it's a cup or league.
     
-    For both cups and leagues: show both columns in 2fr 1fr grid.
+    For cups with brackets: single column for matches + full-width bracket below.
+    For leagues: show both columns in 2fr 1fr grid.
     
     Args:
         search: Dash `Location.search` value.
     
     Returns:
-        Tuple containing container style and standings column style.
+        Tuple containing container style, standings column style, and bracket container style.
     """
     league_name = _parse_league_name(search)
     
-    # Pour les coupes ET les ligues : deux colonnes (matchs 2fr, brackets/classement 1fr)
+    # Vérifier si c'est une coupe
+    if league_name and is_cup(league_name):
+        # Vérifier si on a des données de bracket
+        db = get_db_connection()
+        brackets_data = db.get_cup_brackets(league_name)
+        
+        if brackets_data and brackets_data.get("rounds"):
+            # Une seule colonne pour les matchs, bracket en pleine largeur en dessous
+            container_style = {
+                "display": "grid",
+                "gridTemplateColumns": "1fr",
+                "gap": "20px",
+            }
+            standings_style = {"display": "none"}  # Cacher la colonne standings
+            bracket_style = {"display": "block", "marginTop": "20px"}  # Afficher le bracket
+            return container_style, standings_style, bracket_style
+    
+    # Pour les ligues : deux colonnes (matchs 2fr, classement 1fr)
     container_style = {
         "display": "grid",
         "gridTemplateColumns": "2fr 1fr",
         "gap": "20px",
     }
     standings_style = {}
+    bracket_style = {"display": "none"}  # Cacher le bracket pleine largeur
     
-    return container_style, standings_style
+    return container_style, standings_style, bracket_style
 
 
 @callback(
     Output("league-hero", "children"),
     Output("league-matches-column", "children"),
     Output("league-standings-column", "children"),
+    Output("bracket-full-width", "children"),
     Input("url", "search"),
 )
 def render_league_page(search: Optional[str]):
@@ -1038,14 +1071,14 @@ def render_league_page(search: Optional[str]):
         search: Dash `Location.search` value.
 
     Returns:
-        Tuple containing hero, matches column, standings column.
+        Tuple containing hero, matches column, standings column, and full-width bracket.
     """
     league_name = _parse_league_name(search)
     if not league_name:
         hero = _hero_section(None, 0, None)
         empty_left = _render_matches_column(None, [])
         empty_right = _render_standings_column(None, None, None)
-        return hero, empty_left, empty_right
+        return hero, empty_left, empty_right, html.Div()
 
     db = get_db_connection()
     
@@ -1059,7 +1092,14 @@ def render_league_page(search: Optional[str]):
     hero = _hero_section(league_name, len(matches_for_display), standings_data)
     left_col = _render_matches_column(league_name, matches_for_display)
     right_col = _render_standings_column(league_name, standings_data, brackets_data)
-    return hero, left_col, right_col
+    
+    # Bracket pleine largeur pour les coupes
+    if brackets_data and brackets_data.get("rounds"):
+        bracket_full = _render_brackets(brackets_data)
+    else:
+        bracket_full = html.Div()
+    
+    return hero, left_col, right_col, bracket_full
 
 
 @callback(
@@ -1072,7 +1112,7 @@ def render_league_page(search: Optional[str]):
     State("available-dates-store", "data"),
     prevent_initial_call=True,
 )
-def update_current_date(prev_clicks, next_clicks, dropdown_value, current_date, available_dates):
+def update_current_date(_prev_clicks, _next_clicks, dropdown_value, current_date, available_dates):
     """Update currently selected date using buttons or dropdown.
 
     Returns:

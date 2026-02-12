@@ -99,6 +99,15 @@ else
     echo "  [warn] Erreur catalogue"
 fi
 
+echo "  -> Brackets des coupes..."
+python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('cup_brackets', 'in_progress', 80, 'Tableaux d élimination...'); tracker.close()"
+if python /app/crawler/fetch_brackets.py 2>&1; then
+    python -c "from crawler.initialization_tracker import InitializationTracker; tracker = InitializationTracker(); tracker.update_step('cup_brackets', 'completed', 100); tracker.close()"
+    echo "  [ok] Brackets OK"
+else
+    echo "  [warn] Erreur brackets"
+fi
+
 echo
 echo "  -> Indexation Elasticsearch (trigger)..."
 if python /app/crawler/trigger_elasticsearch.py 2>&1; then
@@ -120,6 +129,7 @@ try:
     print(f'  - Matchs à venir: {db.matches_upcoming.count_documents({})}')
     print(f'  - Matchs terminés: {db.matches_finished.count_documents({})}')
     print(f'  - Classements: {db.standings.count_documents({})}')
+    print(f'  - Brackets: {db.cup_brackets.count_documents({})}')
     client.close()
 except Exception as e:
     print(f'  Erreur: {e}')
@@ -132,6 +142,7 @@ continuous_scraping() {
     local iteration=1
     local standings_counter=0
     local homepage_counter=0
+    local brackets_counter=0
     
     while true; do
         local delay=$((5 + RANDOM % 10))
@@ -157,6 +168,14 @@ continuous_scraping() {
             echo "[$(date +%H:%M:%S)] Mise à jour des classements..."
             python /app/crawler/fetch_standings.py > /dev/null 2>&1
             standings_counter=0
+        fi
+
+        # Update brackets every ~2 hours (720 iterations * ~10s = ~2h)
+        brackets_counter=$((brackets_counter + 1))
+        if [ $brackets_counter -ge 720 ]; then
+            echo "[$(date +%H:%M:%S)] Mise à jour des brackets..."
+            python /app/crawler/fetch_brackets.py > /dev/null 2>&1
+            brackets_counter=0
         fi
 
         iteration=$((iteration + 1))
