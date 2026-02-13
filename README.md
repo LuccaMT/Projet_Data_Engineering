@@ -1,6 +1,6 @@
 # Flashscore Football Dashboard
 
-*Projet de Data Engineering - ESIEE Paris (2025/2026)*
+*Projet de Data Engineering - Rayan BEN TANFOUS & Lucca MATSUMOTO  - ESIEE Paris (2025/2026)*
 
 ## Présentation
 
