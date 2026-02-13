@@ -557,7 +557,7 @@ Analyse comparative de deux équipes côte à côte.
 - [x] Recherche intelligente de clubs
 - [x] Comparaison statistique entre équipes
 - [x] Classements avec forme récente (WDLWW)
-- [x] Tableaux à élimination (coupes)
+- [x] Classement des ligues et matchs des coupes 
 - [x] Statistiques avancées par club
 - [x] Gestion des erreurs et page loading
 - [x] Dockerisation complète (4 conteneurs)
