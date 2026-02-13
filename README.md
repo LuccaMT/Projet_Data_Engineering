@@ -1,18 +1,34 @@
-# Flashscore Football Dashboard : Analyse de Matchs de Football en Temps Réel
+# Flashscore Football Dashboard
 
-Projet réalisé dans le cadre de l'unité Data Engineering (2025/2026), ESIEE Paris.
+*Projet de Data Engineering - ESIEE Paris (2025/2026)*
 
-Le football est l'un des sports les plus suivis au monde, mais les données de matchs restent souvent fragmentées et difficilement accessibles. Ce projet propose une application web complète qui scrape automatiquement les données de matchs depuis [Flashscore.fr](https://www.flashscore.fr/), les stocke dans MongoDB, les indexe dans Elasticsearch pour la recherche, et les restitue sous forme de dashboard interactif. L'utilisateur peut explorer les matchs terminés et à venir, consulter les classements des ligues, suivre les matchs en direct, rechercher des clubs spécifiques, comparer leurs performances, et visualiser les tableaux de coupes avec statistiques détaillées.
+## Présentation
+
+Dashboard interactif pour l'analyse et la visualisation de données footballistiques en temps réel. Cette application collecte automatiquement les informations de matchs depuis [Flashscore.fr](https://www.flashscore.fr/) et les présente via une interface web moderne.
+
+**Objectifs du projet :**
+- Automatiser la collecte de données footballistiques (web scraping)
+- Implémenter un pipeline ETL avec stockage NoSQL et recherche full-text
+- Développer une application de visualisation interactive
+- Manipuler des données temps réel avec rafraîchissement automatique
+
+**Fonctionnalités clés :**
+- Suivi des matchs en cours avec scores actualisés
+- Classements de ligues avec statistiques avancées
+- Moteur de recherche intelligent pour les clubs
+- Comparaison détaillée entre équipes
+- Visualisation des tableaux de compétitions à élimination
 
 ---
 
-# Guide utilisateur
+## Démarrage rapide
 
-## Prérequis
+### Prérequis
+- Docker & Docker Compose installés
+- Minimum 4 Go de RAM disponible pour Docker
+- Connexion Internet stable
 
-Docker et Docker Compose installés sur la machine. Un minimum de 4 Go de RAM est recommandé. Une connexion internet stable est requise pour le scraping des données depuis Flashscore.fr.
-
-## Installation et lancement
+### Installation
 
 ```bash
 git clone <url-du-repo>
@@ -20,83 +36,80 @@ cd Projet_Data_Engineering
 docker-compose up -d
 ```
 
-L'application est ensuite accessible à l'adresse **http://localhost:8050**.
+**Accès :** http://localhost:8050
 
-Au premier lancement, le scraping se lance automatiquement. Les données sont collectées depuis Flashscore.fr : matchs terminés, matchs à venir, classements des ligues, matchs en direct, et historique des équipes (**3 à 10 minutes** selon la disponibilité du site). Une fois l'initialisation terminée, le dashboard Dash est accessible. Pour obtenir un échantillon de données conséquent et exploiter pleinement toutes les fonctionnalités du dashboard, il est recommandé d'attendre environ **20 minutes** que le scraping collecte un volume significatif de matchs.
+**Premier lancement :** L'initialisation automatique collecte les données depuis Flashscore (3-10 minutes selon la connexion). Pour bénéficier d'un échantillon conséquent, attendez environ 20 minutes avant d'explorer toutes les fonctionnalités.
 
-### Réinitialiser et relancer
-
-Pour repartir de zéro (vider la base et relancer le scraping complet) :
+### Nettoyage complet
 
 ```bash
-docker-compose down -v
-docker-compose up -d --build
+docker-compose down -v  # Supprime containers + volumes
+docker-compose up -d --build  # Reconstruit tout
 ```
 
-La commande `down -v` supprime les containers et les volumes (base de données MongoDB, index Elasticsearch). La commande `up --build` reconstruit les images et relance l'ensemble du pipeline.
+---
 
-## Commandes utiles
+## Utilisation
 
-Suivre l'initialisation automatique :
+### Supervision du système
 
+**Suivre l'initialisation :**
 ```bash
 docker-compose logs -f scrapy
 ```
 
-Voir les logs de l'application web :
-
+**Logs de l'application :**
 ```bash
 docker-compose logs -f webapp
 ```
 
-Relancer le scraping des matchs terminés :
-
+**État du système :**
 ```bash
+docker exec flashscore-scrapy python /app/check_status.py
+```
+
+### Gestion des données
+
+**Relancer les scrapers manuellement :**
+```bash
+# Matchs terminés
 docker exec flashscore-scrapy python /app/crawler/fetch_finished.py
-```
 
-Relancer le scraping des matchs à venir :
-
-```bash
+# Matchs à venir
 docker exec flashscore-scrapy python /app/crawler/fetch_upcoming.py
-```
 
-Relancer le scraping des classements :
-
-```bash
+# Classements
 docker exec flashscore-scrapy python /app/crawler/fetch_standings.py
 ```
 
-Accéder directement à MongoDB :
-
+**Accès direct à MongoDB :**
 ```bash
 docker exec -it mongodb mongosh
 use flashscore_db
 db.matches.countDocuments()
 ```
 
-Vérifier l'état complet du projet :
+### Maintenance
 
 ```bash
-docker exec flashscore-scrapy python /app/check_status.py
-```
-
-Relancer un service spécifique :
-
-```bash
-docker-compose restart scrapy
-docker-compose restart webapp
-```
-
-Arrêter tous les services :
-
-```bash
-docker-compose down
+docker-compose restart webapp    # Redémarrer l'application
+docker-compose restart scrapy    # Redémarrer le scraper
+docker-compose down              # Arrêter tous les services
 ```
 
 ---
 
-# Guide développeur
+## Architecture technique
+
+### Stack technologique
+
+| Composant | Technologie | Rôle |
+|-----------|-------------|------|
+| **Scraping** | Scrapy + Selenium | Collecte des données Flashscore |
+| **Base de données** | MongoDB 7.0 | Stockage NoSQL des matchs et statistiques |
+| **Recherche** | Elasticsearch 8.11 | Indexation et recherche fuzzy des clubs |
+| **Visualisation** | Dash/Plotly | Interface web interactive |
+| **Orchestration** | Docker Compose | Déploiement multi-conteneurs |
 
 ## Structure du projet
 
@@ -155,7 +168,6 @@ Projet_Data_Engineering/
             ├── style.css            Styles globaux
             ├── club_styles.css      Styles page clubs
             ├── brackets_styles.css  Styles tableaux de coupes
-            ├── brackets_init.js     Initialisation tableaux
             └── brackets_init.js     Initialisation tableaux
 ```
 
@@ -201,260 +213,362 @@ graph TD
     PAGES -->|http://localhost:8050| USER[Utilisateur]
 ```
 
-## Fonctionnalités développer
+### Composants clés
 
-- **Scraping automatique** : `entrypoint.sh` initialise MongoDB et lance tous les scrapers au démarrage. Le tracker d'initialisation (`initialization_tracker.py`) suit la progression et débloque le dashboard une fois les données chargées.
-- **Pipeline MongoDB** : tous les scrapers utilisent `pipelines.py` pour normaliser les données avant insertion. Les doublons sont détectés via des clés uniques (ID de match, nom de club, etc.).
-- **Indexation Elasticsearch** : les clubs sont indexés automatiquement dans Elasticsearch avec fuzzy matching pour supporter les fautes de frappe dans la recherche.
-- **Selenium + Scrapy** : Flashscore étant un site JavaScript, Selenium est utilisé pour charger les pages, puis Scrapy parse le contenu.
-- **Feed Flashscore** : le module `flashscore_feed.py` parse le feed temps réel de Flashscore pour les matchs en direct.
-- **Calculs de statistiques** : les statistiques des clubs (victoires, défaites, buts, forme) sont calculées à la volée depuis les matchs stockés dans MongoDB.
+#### Scrapers (5 modules spécialisés)
 
-## Schéma de la base de données
+| Module | Cible | Fréquence |
+|--------|-------|-----------|
+| `fetch_finished.py` | Matchs terminés | Init + manuel |
+| `fetch_upcoming.py` | Matchs à venir | Init + manuel |
+| `fetch_standings.py` | Classements ligues | Init + manuel |
+| `fetch_brackets.py` | Tableaux coupes | Init + manuel |
+| `fetch_smart_history.py` | Historique équipes | Init + manuel |
 
-### Collection `matches`
+#### Pipeline ETL
 
-| Champ | Type | Description |
-|---|---|---|
-| _id | ObjectId | Identifiant MongoDB unique |
-| match_id | String | Identifiant unique du match (depuis Flashscore) |
-| home_team | String | Nom de l'équipe à domicile |
-| away_team | String | Nom de l'équipe extérieure |
-| home_score | Integer | Score de l'équipe à domicile |
-| away_score | Integer | Score de l'équipe extérieure |
-| status | String | Statut du match (finished, upcoming, live) |
-| date | String | Date du match (format: DD.MM.YYYY) |
-| time | String | Heure du match (format: HH:MM) |
-| league | String | Nom de la ligue/compétition |
-| country | String | Pays de la compétition |
-| home_logo | String | URL du logo de l'équipe à domicile |
-| away_logo | String | URL du logo de l'équipe extérieure |
-| scraped_at | DateTime | Date de collecte |
+- **Extraction** : Selenium ouvre les pages JavaScript de Flashscore
+- **Transformation** : `pipelines.py` normalise et déduplique les données
+- **Loading** : Insertion MongoDB + indexation Elasticsearch
 
-### Collection `standings`
+#### Dashboard (8 pages interactives)
 
-| Champ | Type | Description |
-|---|---|---|
-| _id | ObjectId | Identifiant MongoDB unique |
-| league | String | Nom de la ligue |
-| country | String | Pays de la ligue |
-| season | String | Saison (ex: 2024/2025) |
-| team_name | String | Nom de l'équipe |
-| position | Integer | Position au classement |
-| played | Integer | Matchs joués |
-| wins | Integer | Victoires |
-| draws | Integer | Matchs nuls |
-| losses | Integer | Défaites |
-| goals_for | Integer | Buts marqués |
-| goals_against | Integer | Buts encaissés |
-| goal_difference | Integer | Différence de buts |
-| points | Integer | Points au classement |
-| form | String | Forme récente (ex: WDWWL) |
-| scraped_at | DateTime | Date de collecte |
-
-### Collection `brackets`
-
-| Champ | Type | Description |
-|---|---|---|
-| _id | ObjectId | Identifiant MongoDB unique |
-| competition | String | Nom de la compétition |
-| round | String | Tour de la compétition (ex: Final, Semi-finals) |
-| match_id | String | Identifiant unique du match |
-| home_team | String | Nom de l'équipe à domicile |
-| away_team | String | Nom de l'équipe extérieure |
-| home_score | Integer | Score de l'équipe à domicile |
-| away_score | Integer | Score de l'équipe extérieure |
-| date | String | Date du match |
-| status | String | Statut du match |
-| scraped_at | DateTime | Date de collecte |
-
-### Collection `initialization_tracker`
-
-| Champ | Type | Description |
-|---|---|---|
-| _id | ObjectId | Identifiant MongoDB unique |
-| status | String | Statut de l'initialisation (in_progress, completed) |
-| last_update | DateTime | Dernière mise à jour |
-| steps_completed | Array | Liste des étapes terminées |
-
-### Index Elasticsearch `clubs`
-
-| Champ | Type | Description |
-|---|---|---|
-| name | Text | Nom du club (avec fuzzy matching) |
-| country | Keyword | Pays du club |
-| league | Keyword | Ligue du club |
-| matches_count | Integer | Nombre de matchs |
-| wins | Integer | Nombre de victoires |
-| draws | Integer | Nombre de nuls |
-| losses | Integer | Nombre de défaites |
-| goals_for | Integer | Buts marqués |
-| goals_against | Integer | Buts encaissés |
-| last_updated | Date | Dernière mise à jour |
-
-## Variables d'environnement
-
-| Variable | Description | Valeur par défaut |
-|---|---|---|
-| MONGO_URI | Chaîne de connexion MongoDB | mongodb://mongodb:27017/ |
-| MONGO_DB | Nom de la base MongoDB | flashscore_db |
-| ELASTICSEARCH_URL | URL du service Elasticsearch | http://elasticsearch:9200 |
-| CHROME_DRIVER_PATH | Chemin du driver Chrome (Selenium) | /usr/bin/chromedriver |
-
-En exécution locale (hors Docker), remplacer les noms de services par `localhost` et ajuster les ports si nécessaire.
-
-## Résolution de problèmes
-
-**Problème : La page loading s'affiche en boucle**
-- **Cause** : Le tracker d'initialisation n'est pas à jour
-- **Solution** : Exécuter le script de force completion
-  ```bash
-  docker exec flashscore-scrapy python /app/crawler/force_initialization_complete.py
-  docker-compose restart webapp
-  ```
-
-**Problème : Pas de données affichées**
-- **Vérification** : Lancer le script de diagnostic
-  ```bash
-  docker exec flashscore-scrapy python /app/check_status.py
-  ```
-- **Solution** : Vérifier les logs du scraper
-  ```bash
-  docker-compose logs scrapy
-  ```
-
-**Problème : Elasticsearch ne démarre pas**
-- **Cause** : Mémoire insuffisante
-- **Solution** : Augmenter la mémoire allouée à Docker (minimum 4 Go recommandé)
-
-**Problème : Les logos ne s'affichent pas**
-- **Cause** : URLs des logos expirées ou bloquées par Flashscore
-- **Solution** : Relancer le scraping pour récupérer de nouvelles URLs
+1. **Accueil** : Présentation + vidéo démo
+2. **Live** : Matchs en cours (refresh 60s)
+3. **Ligues** : Liste des compétitions
+4. **Détail ligue** : Classement + statistiques
+5. **Coupes** : Tableaux à élimination
+6. **Recherche** : Moteur fuzzy pour clubs
+7. **Détail club** : Stats + historique
+8. **Comparaison** : Analyse comparative 2 clubs
 
 ---
 
-# Rapport du projet
+## Modèle de données
 
-## Page d'accueil (/)
+---
 
-C'est la première page affichée à l'ouverture de l'application. Elle présente le projet Flashscore Football Dashboard, son contexte et ses objectifs. Elle détaille les technologies utilisées dans le projet (MongoDB pour le stockage, Elasticsearch pour la recherche, Scrapy/Selenium pour le scraping, Dash/Plotly pour la visualisation) et inclut une vidéo de démonstration permettant à l'utilisateur de découvrir les fonctionnalités principales du dashboard avant de naviguer dans l'application.
+## Modèle de données
+
+### MongoDB Collections
+
+#### Collection `matches`
+Stocke tous les matchs (terminés, à venir, en direct).
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| match_id | String (PK) | Identifiant unique Flashscore |
+| home_team, away_team | String | Noms des équipes |
+| home_score, away_score | Integer | Scores finaux |
+| status | Enum | finished / upcoming / live |
+| date, time | String | DD.MM.YYYY, HH:MM |
+| league, country | String | Compétition et pays |
+| home_logo, away_logo | String | URLs des logos |
+| scraped_at | DateTime | Horodatage collecte |
+
+#### Collection `standings`
+Classements des ligues avec statistiques détaillées.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| league, country, season | String | Identifiant de la compétition |
+| team_name | String | Nom de l'équipe |
+| position, points | Integer | Classement et score |
+| played, wins, draws, losses | Integer | Statistiques de matchs |
+| goals_for, goals_against | Integer | Buts marqués/encaissés |
+| goal_difference | Integer | Différence de buts |
+| form | String | Ex: "WDLWW" (5 derniers matchs) |
+| scraped_at | DateTime | Horodatage collecte |
+
+#### Collection `brackets`
+Tableaux à élimination directe des coupes.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| competition | String | Nom de la coupe |
+| round | String | Final, Semi-finals, etc. |
+| match_id | String | Référence au match |
+| home/away_team, scores | Mixed | Infos match |
+| date, status | String | Timing |
+
+#### Collection `initialization_tracker`
+Suivi de l'état du système.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| status | Enum | in_progress / completed |
+| steps_completed | Array | Liste des scrapers terminés |
+| last_update | DateTime | Dernière modification |
+
+### Elasticsearch Index
+
+#### Index `clubs`
+Recherche full-text avec fuzzy matching.
+
+| Champ | Type | Analyseur |
+|-------|------|-----------|
+| name | Text | Standard + fuzzy |
+| country, league | Keyword | Exact match |
+| matches_count | Integer | - |
+| wins, draws, losses | Integer | - |
+| goals_for, goals_against | Integer | - |
+| last_updated | Date | - |
+
+**Configuration fuzzy :** `fuzziness: "AUTO"` tolère 1-2 caractères erronés selon la longueur du mot.
+
+---
+
+## Configuration système
+
+---
+
+## Configuration système
+
+### Variables d'environnement
+
+| Variable | Valeur par défaut | Usage |
+|----------|-------------------|-------|
+| MONGO_URI | `mongodb://mongodb:27017/` | Connexion MongoDB |
+| MONGO_DB | `flashscore_db` | Nom de la base |
+| ELASTICSEARCH_URL | `http://elasticsearch:9200` | URL Elasticsearch |
+| CHROME_DRIVER_PATH | `/usr/bin/chromedriver` | Selenium driver |
+
+**En développement local :** Remplacer les noms de services par `localhost` et ajuster les ports.
+
+### Services Docker
+
+| Service | Port | Ressources | Rôle |
+|---------|------|------------|------|
+| mongodb | 27017 | - | Base NoSQL |
+| elasticsearch | 9200 | 2 Go RAM min | Moteur de recherche |
+| scrapy | - | - | Collecteur de données |
+| webapp | 8050 | - | Interface web |
+
+---
+
+## Dépannage
+
+### Problème : Page de chargement infinie
+
+**Cause :** Le tracker d'initialisation est bloqué  
+**Solution :**
+```bash
+docker exec flashscore-scrapy python /app/crawler/force_initialization_complete.py
+docker-compose restart webapp
+```
+
+### Problème : Aucune donnée affichée
+
+**Diagnostic :**
+```bash
+docker exec flashscore-scrapy python /app/check_status.py
+docker-compose logs scrapy
+```
+
+**Actions :**
+- Vérifier que MongoDB contient des documents : `db.matches.countDocuments()`
+- Relancer les scrapers manuellement
+- Vérifier la connexion Internet
+
+### Problème : Elasticsearch ne démarre pas
+
+**Cause :** Mémoire insuffisante  
+**Solution :** Allouer minimum 4 Go de RAM à Docker Desktop (Préférences → Ressources)
+
+### Problème : Logos manquants
+
+**Cause :** URLs Flashscore expirées ou bloquées  
+**Solution :** Relancer `fetch_finished.py` pour rafraîchir les URLs
+
+### Problème : Erreur de connexion MongoDB
+
+**Diagnostic :**
+```bash
+docker-compose ps  # Vérifier que mongodb est UP
+docker logs mongodb  # Voir les erreurs
+```
+
+**Solution :**
+- Recréer les volumes : `docker-compose down -v && docker-compose up -d`
+- Vérifier les permissions du dossier de données
+
+---
+
+## Description des pages
+
+---
+
+## Description des pages
+
+### Page d'accueil `/`
+
+Vitrine du projet présentant le contexte, les objectifs et la stack technique. Intègre une vidéo de démonstration complète du dashboard pour permettre une découverte rapide des fonctionnalités.
 
 **Vidéo de démonstration :** [Media/presentation.mp4](Media/presentation.mp4)
 
-> 💡 La vidéo est également intégrée directement dans l'application web sur la page d'accueil (http://localhost:8050)
+**Contenu :**
+- Présentation du projet et contexte académique
+- Technologies utilisées (MongoDB, Elasticsearch, Scrapy, Dash)
+- Vidéo démo intégrée (également disponible dans le dossier Media)
+- Liens de navigation vers toutes les sections
 
-**Fonctionnalités :**
-- Présentation du projet et contexte
-- Description des technologies utilisées (stack technique)
-- Vidéo de démonstration du dashboard intégrée
-- Navigation vers les différentes sections
-- Vue d'ensemble des fonctionnalités disponibles
+---
 
-## Matchs en direct (/live)
+### Matchs en direct `/live`
 
-Cette page affiche les matchs en cours en temps réel grâce au feed Flashscore. Elle se rafraîchit automatiquement toutes les 60 secondes pour afficher les derniers scores et événements. Les matchs sont classés par compétition avec indication du temps de jeu et des scores actuels.
+Affichage temps réel des matchs en cours avec rafraîchissement automatique (intervalle : 60 secondes).
 
-**Fonctionnalités :**
-- Rafraîchissement automatique
-- Temps de jeu en direct
-- Scores mis à jour en temps réel
+**Données affichées :**
+- Scores actuels avec mise à jour live
+- Temps de jeu (minutes jouées)
 - Organisation par compétition
-
-## Ligues (/leagues)
-
-Cette page liste toutes les compétitions disponibles avec leur pays, drapeau et nombre d'équipes. L'utilisateur peut cliquer sur une ligue pour accéder à son classement détaillé et aux statistiques des équipes.
-
-**Fonctionnalités :**
-- Liste complète des ligues
-- Drapeaux des pays
-- Nombre d'équipes par ligue
-- Liens vers les classements
-
-## Détail d'une ligue (/league-detail)
-
-Cette page affiche le classement complet d'une ligue avec position, points, matchs joués, victoires, nuls, défaites, buts marqués/encaissés, différence de buts et forme récente. Un graphique d'évolution des points complète le tableau.
-
-**Fonctionnalités :**
-- Classement complet avec toutes les statistiques
-- Forme récente (WDWWL)
 - Logos des équipes
-- Graphique d'évolution des points
-- Indicateurs visuels (top 3, zone de relégation)
 
-## Tableaux de coupes (/cups)
+**Technique :** Parse le feed JSON de Flashscore (`flashscore_feed.py`) pour obtenir les données en temps réel.
 
-Cette page affiche les tableaux à élimination directe des compétitions de coupe (Champions League, Europa League, Coupe du Monde, etc.). Les matchs sont organisés par tour (finale, demi-finales, quarts de finale, etc.) avec visualisation en arbre. Chaque match affiche les équipes, scores et dates.
+---
+
+### Ligues `/leagues`
+
+Vue d'ensemble de toutes les compétitions disponibles dans la base.
+
+**Informations affichées :**
+- Nom de la ligue/compétition
+- Pays (avec drapeau)
+- Nombre d'équipes participantes
+- Lien vers le classement détaillé
+
+**Interactivité :** Clic sur une ligue → redirection vers `/league-detail`
+
+---
+
+### Détail d'une ligue `/league-detail`
+
+Classement complet d'une ligue avec toutes les statistiques officielles.
+
+**Tableau de classement :**
+- Position, équipe (avec logo), points
+- Matchs joués, victoires, nuls, défaites
+- Buts marqués/encaissés, différence de buts
+- Forme récente (ex: WDWLW pour les 5 derniers matchs)
+
+**Visualisations :**
+- Graphique d'évolution des points (line chart)
+- Indicateurs visuels (top 3 en vert, relégation en rouge)
+
+---
+
+### Tableaux de coupes `/cups`
+
+Visualisation des phases à élimination directe des compétitions majeures (Champions League, World Cup, etc.).
 
 **Fonctionnalités :**
-- Visualisation en arbre des tableaux
-- Organisation par tour
-- Scores et résultats
-- Logos des équipes
+- Arbre interactif des matchs par tour
+- Organisation : Finale → Demi-finales → Quarts → Huitièmes
+- Affichage des scores et dates
 - Support de multiples compétitions
 
-## Recherche de clubs (/clubs/search)
-
-Cette page permet de rechercher un club par nom avec Elasticsearch. La recherche supporte le fuzzy matching (fautes de frappe tolérées). Les résultats affichent des statistiques complètes : nombre de matchs, victoires, nuls, défaites, buts marqués/encaissés, taux de victoire, et forme récente.
-
-**Fonctionnalités :**
-- Recherche intelligente avec fuzzy matching
-- Statistiques complètes par club
-- Graphiques interactifs (pie chart, bar chart)
-- Lien vers la page de détail
-- Suggestion de clubs similaires
-
-## Détail d'un club (/clubs/detail)
-
-Cette page affiche toutes les informations d'un club : statistiques générales (victoires, défaites, buts), graphiques de performance (répartition des résultats, buts marqués/encaissés, évolution de la forme), liste des derniers matchs, et prochains matchs à venir.
-
-**Fonctionnalités :**
-- Statistiques détaillées
-- 4 graphiques interactifs (pie, bar, line charts)
-- Historique des matchs avec résultats
-- Prochains matchs
-- Logo et informations du club
-
-## Comparaison de clubs (/clubs/compare)
-
-Cette page permet de comparer deux clubs côte à côte avec un radar chart comparatif (victoires, défaites, buts marqués/encaissés, taux de victoire), statistiques détaillées pour chaque club, et historique des confrontations directes si disponibles.
-
-**Fonctionnalités :**
-- Radar chart comparatif
-- Statistiques côte à côte
-- Confrontations directes
-- Graphiques individuels par club
-- Logos et couleurs distinctives
-
-
-## Sources
-
-| Ressource | Lien |
-|---|---|
-| Flashscore.fr - Source principale (scrapée) | https://www.flashscore.fr/ |
-| Flashscore Feed API - Matchs en direct | https://www.flashscore.fr/x/feed/ |
-| Documentation Scrapy | https://docs.scrapy.org/ |
-| Documentation Selenium | https://www.selenium.dev/documentation/ |
-| Documentation MongoDB | https://www.mongodb.com/docs/ |
-| Documentation Elasticsearch | https://www.elastic.co/guide/ |
-| Documentation Dash/Plotly | https://dash.plotly.com/ |
+**Rendu :** Utilise `brackets_init.js` et `brackets_styles.css` pour créer les arbres graphiques.
 
 ---
 
-## Fonctionnalités
+### Recherche de clubs `/clubs/search`
 
-✅ Scraping automatique au démarrage  
-✅ Stockage MongoDB avec gestion des doublons  
-✅ Dashboard interactif temps réel  
-✅ Filtrage par date/mois  
-✅ Statistiques en direct  
-✅ Logos des équipes  
-✅ Interface responsive  
-✅ Recherche de clubs avec Elasticsearch  
-✅ Comparaison de clubs avec graphiques  
-✅ Statistiques détaillées par club  
-✅ Classements des ligues avec forme récente  
-✅ Matchs en direct avec rafraîchissement auto  
+Moteur de recherche intelligent avec tolérance aux fautes de frappe (Elasticsearch fuzzy matching).
+
+**Fonctionnalités de recherche :**
+- Recherche par nom de club
+- Tolérance automatique aux erreurs (1-2 caractères)
+- Résultats avec statistiques complètes :
+  - Nombre de matchs, victoires, nuls, défaites
+  - Buts marqués/encaissés
+  - Taux de victoire (%)
+  - Forme récente
+
+**Visualisations :**
+- Pie chart : répartition victoires/nuls/défaites
+- Bar chart : buts marqués vs encaissés
+- Lien vers page détail du club
 
 ---
 
-Projet réalisé dans le cadre de l'unité Data Engineering, ESIEE Paris, année universitaire 2025/2026.
+### Détail d'un club `/clubs/detail`
+
+Page complète dédiée à un club avec historique et statistiques avancées.
+
+**Sections :**
+1. **En-tête** : Logo, nom, pays, ligue
+2. **Statistiques globales** : 
+   - Total matchs, victoires (%), nuls (%), défaites (%)
+   - Buts totaux marqués/encaissés
+3. **Graphiques interactifs** :
+   - Pie chart des résultats
+   - Bar chart buts marqués/encaissés
+   - Line chart évolution de la forme
+   - Radar chart performance
+4. **Derniers matchs** : Liste avec résultats et dates
+5. **Prochains matchs** : Calendrier à venir
+
+---
+
+### Comparaison de clubs `/clubs/compare`
+
+Analyse comparative de deux équipes côte à côte.
+
+**Visualisations :**
+- **Radar chart central** : Comparaison multi-critères
+  - Victoires, défaites, buts marqués, buts encaissés, taux de victoire
+- **Statistiques parallèles** : Tableau comparatif complet
+- **Graphiques individuels** : Pie charts pour chaque club
+
+**Fonctionnalité bonus :** Si disponible, affiche l'historique des confrontations directes entre les deux clubs.
+
+---
+
+## Références et ressources
+
+---
+
+## Références et ressources
+
+| Type | Nom | Lien |
+|------|-----|------|
+| Source de données | Flashscore.fr | https://www.flashscore.fr/ |
+| API temps réel | Flashscore Feed | https://www.flashscore.fr/x/feed/ |
+| Scraping | Scrapy Docs | https://docs.scrapy.org/ |
+| Automatisation web | Selenium Docs | https://www.selenium.dev/documentation/ |
+| Base NoSQL | MongoDB Docs | https://www.mongodb.com/docs/ |
+| Recherche | Elasticsearch Guide | https://www.elastic.co/guide/ |
+| Visualisation | Dash/Plotly Docs | https://dash.plotly.com/ |
+
+---
+
+## Checklist des fonctionnalités
+
+- [x] Scraping automatique au démarrage (entrypoint.sh)
+- [x] Pipeline ETL avec déduplication MongoDB
+- [x] Indexation Elasticsearch avec fuzzy search
+- [x] Dashboard interactif multi-pages (8 pages)
+- [x] Matchs en direct avec refresh automatique (60s)
+- [x] Filtrage temporel (date/mois)
+- [x] Graphiques interactifs Plotly
+- [x] Logos et drapeaux des équipes
+- [x] Interface responsive CSS
+- [x] Recherche intelligente de clubs
+- [x] Comparaison statistique entre équipes
+- [x] Classements avec forme récente (WDLWW)
+- [x] Tableaux à élimination (coupes)
+- [x] Statistiques avancées par club
+- [x] Gestion des erreurs et page loading
+- [x] Dockerisation complète (4 conteneurs)
+
+---
+
+## Auteurs
+
+Projet académique réalisé dans le cadre de l'UE **Data Engineering**  
+ESIEE Paris - Année 2025/2026
+
+---
+
+*Documentation générée le 13/02/2026*
