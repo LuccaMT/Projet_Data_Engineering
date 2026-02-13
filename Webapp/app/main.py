@@ -89,6 +89,16 @@ app = Dash(
     ]
 )
 
+# Route Flask pour servir les fichiers du dossier Media
+@app.server.route('/Media/<path:path>')
+def serve_media(path):
+    """Sert les fichiers statiques du dossier Media (vidéos, images, etc.)."""
+    from flask import send_from_directory
+    import os
+    # Chemin absolu vers le dossier Media dans le container
+    media_dir = '/app/Media'
+    return send_from_directory(media_dir, path, mimetype='video/mp4')
+
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content')

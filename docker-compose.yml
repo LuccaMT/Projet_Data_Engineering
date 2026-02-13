@@ -88,6 +88,8 @@ services:
     volumes:
       # Monter le code pour le développement (optionnel)
       - ./Webapp/app:/app/app
+      # Monter le dossier Media pour servir les vidéos et images
+      - ./Media:/app/Media
       # Permettre à la webapp d'exécuter docker exec vers le conteneur scrapy
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

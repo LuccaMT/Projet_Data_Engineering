@@ -213,35 +213,18 @@ def create_layout():
                                 "🎥 Vidéo de présentation",
                                 style={"color": "#1e293b", "marginBottom": "20px", "textAlign": "center"}
                             ),
-                            html.Div(
+                            html.Video(
+                                src="/Media/presentation.mp4",
+                                controls=True,
                                 style={
                                     "width": "100%",
                                     "maxWidth": "800px",
                                     "margin": "0 auto",
-                                    "aspectRatio": "16/9",
-                                    "background": "#f1f5f9",
                                     "borderRadius": "8px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "border": "2px dashed #cbd5e1"
+                                    "display": "block",
+                                    "boxShadow": "0 4px 12px rgba(0,0,0,0.15)"
                                 },
-                                children=[
-                                    html.Div(
-                                        style={"textAlign": "center", "color": "#64748b"},
-                                        children=[
-                                            html.Div("🎬", style={"fontSize": "48px", "marginBottom": "10px"}),
-                                            html.P(
-                                                "Espace réservé pour la vidéo de présentation",
-                                                style={"fontSize": "16px", "margin": "0"}
-                                            ),
-                                            html.P(
-                                                "(Format 16:9 - À ajouter ultérieurement)",
-                                                style={"fontSize": "14px", "opacity": "0.7", "marginTop": "5px"}
-                                            )
-                                        ]
-                                    )
-                                ]
+                                poster="/assets/video-poster.jpg"
                             ),         
                         ]
                     ),

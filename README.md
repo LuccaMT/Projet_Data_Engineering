@@ -339,10 +339,16 @@ En exécution locale (hors Docker), remplacer les noms de services par `localhos
 
 C'est la première page affichée à l'ouverture de l'application. Elle présente le projet Flashscore Football Dashboard, son contexte et ses objectifs. Elle détaille les technologies utilisées dans le projet (MongoDB pour le stockage, Elasticsearch pour la recherche, Scrapy/Selenium pour le scraping, Dash/Plotly pour la visualisation) et inclut une vidéo de démonstration permettant à l'utilisateur de découvrir les fonctionnalités principales du dashboard avant de naviguer dans l'application.
 
+**Vidéo de démonstration :** 
+
+https://github.com/user-attachments/assets/presentation.mp4
+
+> 💡 La vidéo est également intégrée directement dans l'application web sur la page d'accueil (http://localhost:8050)
+
 **Fonctionnalités :**
 - Présentation du projet et contexte
 - Description des technologies utilisées (stack technique)
-- Vidéo de démonstration du dashboard
+- Vidéo de démonstration du dashboard intégrée
 - Navigation vers les différentes sections
 - Vue d'ensemble des fonctionnalités disponibles
 
@@ -448,7 +454,6 @@ Cette page permet de comparer deux clubs côte à côte avec un radar chart comp
 ✅ Recherche de clubs avec Elasticsearch  
 ✅ Comparaison de clubs avec graphiques  
 ✅ Statistiques détaillées par club  
-✅ Tableaux de coupes avec visualisation en arbre  
 ✅ Classements des ligues avec forme récente  
 ✅ Matchs en direct avec rafraîchissement auto  
 

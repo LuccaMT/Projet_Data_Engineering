@@ -546,7 +546,15 @@ def _render_standings_column(league_name: Optional[str], standings_data: Optiona
         )
 
     if not standings_data or not standings_data.get("standings"):
-        return html.Div()
+        return html.Div(
+            className="empty-card",
+            children=[
+                html.H4("Classement non disponible"),
+                html.P("Le classement officiel n'a pas encore été scrapé pour cette ligue."),
+                html.P("Le classement sera disponible après le prochain scraping automatique.", 
+                       style={"fontSize": "0.9em", "color": "#666"}),
+            ],
+        )
 
     standings = standings_data["standings"]
     
@@ -819,7 +827,9 @@ def render_navbar(search: Optional[str]):
     Input("url", "search"),
 )
 def adjust_columns_layout(search: Optional[str]):
-    """Adjust the layout of columns - single centered column.
+    """Adjust the layout of columns based on whether it's a cup or league.
+    
+    For leagues: show both columns in 2fr 1fr grid.
     
     Args:
         search: Dash `Location.search` value.
@@ -827,14 +837,14 @@ def adjust_columns_layout(search: Optional[str]):
     Returns:
         Tuple containing container style, standings column style, and bracket container style.
     """
-    # Une seule colonne centrée
+    # Pour les ligues : deux colonnes (matchs 2fr, classement 1fr)
     container_style = {
-        "display": "flex",
-        "justifyContent": "center",
+        "display": "grid",
+        "gridTemplateColumns": "2fr 1fr",
         "gap": "20px",
     }
-    standings_style = {"display": "none"}
-    bracket_style = {"display": "none"}
+    standings_style = {}
+    bracket_style = {"display": "none"}  # Cacher le bracket pleine largeur
     
     return container_style, standings_style, bracket_style
 
