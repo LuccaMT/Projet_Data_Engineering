@@ -565,10 +565,8 @@ Analyse comparative de deux équipes côte à côte.
 ---
 
 ## Auteurs
-
+Rayan BEN TANFOUS & Lucca MATSUMOTO  
 Projet académique réalisé dans le cadre de l'UE **Data Engineering**  
 ESIEE Paris - Année 2025/2026
 
 ---
-
-*Documentation générée le 13/02/2026*
